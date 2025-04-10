@@ -1,0 +1,11 @@
+{
+  "projectSettings": {
+    "framework": "nextjs",
+    "devCommand": "next dev",
+    "buildCommand": "next build",
+    "outputDirectory": ".next"
+  },
+  "buildCommand": "next build",
+  "installCommand": "npm install",
+  "framework": "nextjs"
+} 
