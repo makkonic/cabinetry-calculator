@@ -11,9 +11,15 @@ import {
   getCabinetPricing,
   getSurfacePricing,
   getAddonPricing,
+  getAreas,
+  getMeasurementTypes,
+  getHandleTypes,
   type CabinetPricing,
   type SurfacePricing,
   type AddonPricing,
+  type Area,
+  type MeasurementType,
+  type HandleType,
 } from "@/lib/supabase"
 import {
   type CalculatorConfig,
@@ -30,47 +36,53 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Label } from "@/components/ui/label"
 
 export function Calculator() {
+  // Reference data
+  const [areas, setAreas] = useState<Area[]>([])
+  const [measurementTypes, setMeasurementTypes] = useState<MeasurementType[]>([])
+  const [handleTypes, setHandleTypes] = useState<HandleType[]>([])
+  
+  // Pricing data
   const [cabinetPricing, setCabinetPricing] = useState<CabinetPricing[]>([])
   const [surfacePricing, setSurfacePricing] = useState<SurfacePricing[]>([])
   const [addonPricing, setAddonPricing] = useState<AddonPricing[]>([])
   const [loading, setLoading] = useState(true)
 
-  const [handleType, setHandleType] = useState<"Handles" | "Profiles">("Handles")
+  const [handle_type, setHandleType] = useState<string>("Handles")
   const [cabinets, setCabinets] = useState<CabinetConfig[]>([
-    { category: "HANDLES - BASE", linearFeet: 0, priceLevel: 0, strEnabled: false },
-    { category: "HANDLES - BASE LE MANS", quantity: 0, priceLevel: 0, strEnabled: false },
-    { category: "HANDLES - COLUMNS", linearFeet: 0, priceLevel: 0, strEnabled: false },
-    { category: "HANDLES - COLUMNS LE MANS", quantity: 0, priceLevel: 0, strEnabled: false },
-    { category: "HANDLES - STACK", linearFeet: 0, priceLevel: 0, strEnabled: false },
-    { category: "HANDLES - WALL", linearFeet: 0, priceLevel: 0, strEnabled: false },
-    { category: "DW PANEL HANDLE", quantity: 0, priceLevel: 0, strEnabled: false },
-    { category: "FRIDGE PANEL", linearFeet: 0, priceLevel: 0, strEnabled: false },
-    { category: "SHELVES", linearFeet: 0, priceLevel: 0, strEnabled: false },
+    { name: "BASE", area: "KITCHEN", measurement_type: "LINEAR FOOT", handle_type: "Handles", linearFeet: 0, priceLevel: 0, strEnabled: false },
+    { name: "BASE LE MANS", area: "KITCHEN", measurement_type: "PER PIECE", handle_type: "Handles", quantity: 0, priceLevel: 0, strEnabled: false },
+    { name: "COLUMNS", area: "KITCHEN", measurement_type: "LINEAR FOOT", handle_type: "Handles", linearFeet: 0, priceLevel: 0, strEnabled: false },
+    { name: "COLUMNS LE MANS", area: "KITCHEN", measurement_type: "PER PIECE", handle_type: "Handles", quantity: 0, priceLevel: 0, strEnabled: false },
+    { name: "STACK", area: "KITCHEN", measurement_type: "LINEAR FOOT", handle_type: "Handles", linearFeet: 0, priceLevel: 0, strEnabled: false },
+    { name: "WALL", area: "KITCHEN", measurement_type: "LINEAR FOOT", handle_type: "Handles", linearFeet: 0, priceLevel: 0, strEnabled: false },
+    { name: "DW PANEL", area: "KITCHEN", measurement_type: "PER PIECE", handle_type: "Handles", quantity: 0, priceLevel: 0, strEnabled: false },
+    { name: "FRIDGE PANEL", area: "KITCHEN", measurement_type: "LINEAR FOOT", handle_type: "Handles", linearFeet: 0, priceLevel: 0, strEnabled: false },
+    { name: "SHELVES", area: "KITCHEN", measurement_type: "LINEAR FOOT", handle_type: "Handles", linearFeet: 0, priceLevel: 0, strEnabled: false },
   ])
 
   const [surfaces, setSurfaces] = useState<SurfaceConfig[]>([
-    { category: "COUNTER TOP", material: "laminate", squareFeet: 0 },
-    { category: "BACKSPLASH", material: "laminate", squareFeet: 0 },
+    { name: "COUNTER TOP", area: "KITCHEN", measurement_type: "SQUARE FOOT", material: "laminate", squareFeet: 0 },
+    { name: "BACKSPLASH", area: "KITCHEN", measurement_type: "SQUARE FOOT", material: "laminate", squareFeet: 0 },
   ])
 
   const [addons, setAddons] = useState<AddonConfig[]>([
-    { name: "ALUMINUM PROFILES", linearFeet: 0 },
-    { name: "ALUMINUM TOE KICKS", linearFeet: 0 },
-    { name: "LED LIGHTING", linearFeet: 0 },
-    { name: "TRANSFORMER", quantity: 0 },
-    { name: "INTEGRATED SINK", quantity: 0 },
-    { name: "POWER STRIP", quantity: 0 },
+    { name: "ALUMINUM PROFILES", area: "KITCHEN", measurement_type: "LINEAR FOOT", linearFeet: 0 },
+    { name: "ALUMINUM TOE KICKS", area: "KITCHEN", measurement_type: "LINEAR FOOT", linearFeet: 0 },
+    { name: "LED LIGHTING", area: "KITCHEN", measurement_type: "LINEAR FOOT", linearFeet: 0 },
+    { name: "TRANSFORMER", area: "KITCHEN", measurement_type: "PER PIECE", quantity: 0 },
+    { name: "INTEGRATED SINK", area: "KITCHEN", measurement_type: "PER PIECE", quantity: 0 },
+    { name: "POWER STRIP", area: "KITCHEN", measurement_type: "PER PIECE", quantity: 0 },
   ])
 
   const [island, setIsland] = useState<IslandConfig>({
     enabled: false,
-    handleType: "Handles",
+    handle_type: "Handles",
     priceLevel: 0,
-    counterTop: { category: "COUNTER TOP", material: "laminate", squareFeet: 0 },
-    waterfall: { category: "WATERFALL", material: "laminate", squareFeet: 0 },
-    aluminumProfiles: { name: "ALUMINUM PROFILES", linearFeet: 0 },
-    aluminumToeKicks: { name: "ALUMINUM TOE KICKS", linearFeet: 0 },
-    integratedSink: { name: "INTEGRATED SINK", quantity: 0 },
+    counterTop: { name: "COUNTER TOP", area: "ISLAND", measurement_type: "SQUARE FOOT", material: "laminate", squareFeet: 0 },
+    waterfall: { name: "WATERFALL", area: "ISLAND", measurement_type: "SQUARE FOOT", material: "laminate", squareFeet: 0 },
+    aluminumProfiles: { name: "ALUMINUM PROFILES", area: "ISLAND", measurement_type: "LINEAR FOOT", linearFeet: 0 },
+    aluminumToeKicks: { name: "ALUMINUM TOE KICKS", area: "ISLAND", measurement_type: "LINEAR FOOT", linearFeet: 0 },
+    integratedSink: { name: "INTEGRATED SINK", area: "ISLAND", measurement_type: "PER PIECE", quantity: 0 },
   })
 
   const [activeTab, setActiveTab] = useState("cabinets")
@@ -80,12 +92,18 @@ export function Calculator() {
   useEffect(() => {
     async function loadPricingData() {
       setLoading(true)
-      const [cabinets, surfaces, addons] = await Promise.all([
+      const [areasData, measurementTypesData, handleTypesData, cabinets, surfaces, addons] = await Promise.all([
+        getAreas(),
+        getMeasurementTypes(),
+        getHandleTypes(),
         getCabinetPricing(),
         getSurfacePricing(),
         getAddonPricing(),
       ])
 
+      setAreas(areasData)
+      setMeasurementTypes(measurementTypesData)
+      setHandleTypes(handleTypesData)
       setCabinetPricing(cabinets)
       setSurfacePricing(surfaces)
       setAddonPricing(addons)
@@ -95,30 +113,15 @@ export function Calculator() {
     loadPricingData()
   }, [])
 
-  // Update cabinet categories when handle type changes
+  // Update cabinet handle_type when handle type changes
   useEffect(() => {
-    const prefix = handleType.toUpperCase()
     setCabinets((prev) =>
-      prev.map((cabinet) => {
-        // Only update categories that should change with handle type
-        if (cabinet.category.includes("HANDLES") || cabinet.category.includes("PROFILES")) {
-          const suffix = cabinet.category.split(" - ")[1]
-          return {
-            ...cabinet,
-            category: `${prefix} - ${suffix}`,
-          }
-        }
-        // For DW PANEL, update based on handle type
-        if (cabinet.category.includes("DW PANEL")) {
-          return {
-            ...cabinet,
-            category: `DW PANEL ${prefix.slice(0, -1)}`,
-          }
-        }
-        return cabinet
-      }),
+      prev.map((cabinet) => ({
+        ...cabinet,
+        handle_type
+      }))
     )
-  }, [handleType])
+  }, [handle_type])
 
   // Calculate transformer quantity based on LED lighting
   useEffect(() => {
@@ -145,7 +148,7 @@ export function Calculator() {
   }, [island.counterTop.material, island.enabled])
 
   const config: CalculatorConfig = {
-    handleType,
+    handle_type,
     cabinets,
     surfaces,
     addons,
@@ -201,18 +204,16 @@ export function Calculator() {
             <div className="mb-6">
               <h2 className="text-lg font-semibold mb-3">Handle Type</h2>
               <RadioGroup
-                value={handleType}
-                onValueChange={(value) => setHandleType(value as "Handles" | "Profiles")}
+                value={handle_type}
+                onValueChange={(value) => setHandleType(value as string)}
                 className="flex space-x-4"
               >
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="Handles" id="handles" />
-                  <Label htmlFor="handles">Handles</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="Profiles" id="profiles" />
-                  <Label htmlFor="profiles">Profiles</Label>
-                </div>
+                {handleTypes.map((type) => (
+                  <div key={type.id} className="flex items-center space-x-2">
+                    <RadioGroupItem value={type.name} id={type.name} />
+                    <Label htmlFor={type.name}>{type.name}</Label>
+                  </div>
+                ))}
               </RadioGroup>
             </div>
 
@@ -227,7 +228,7 @@ export function Calculator() {
               <TabsContent value="cabinets" className="space-y-6">
                 {cabinets.map((cabinet, index) => (
                   <CabinetSection
-                    key={cabinet.category}
+                    key={cabinet.name}
                     cabinet={cabinet}
                     onChange={(updated) => handleCabinetChange(index, updated)}
                     pricingData={cabinetPricing}
@@ -238,7 +239,7 @@ export function Calculator() {
               <TabsContent value="surfaces" className="space-y-6">
                 {surfaces.map((surface, index) => (
                   <SurfaceSection
-                    key={surface.category}
+                    key={surface.name}
                     surface={surface}
                     onChange={(updated) => handleSurfaceChange(index, updated)}
                     pricingData={surfacePricing}

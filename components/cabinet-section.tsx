@@ -21,7 +21,13 @@ interface CabinetSectionProps {
 
 export function CabinetSection({ cabinet, onChange, pricingData }: CabinetSectionProps) {
   const [price, setPrice] = useState(0)
-  const pricing = pricingData.find((p) => p.category === cabinet.category)
+  const pricing = pricingData.find(
+    (p) => 
+      p.name === cabinet.name && 
+      p.area === cabinet.area && 
+      p.measurement_type === cabinet.measurement_type && 
+      p.handle_type === cabinet.handle_type
+  )
 
   useEffect(() => {
     setPrice(calculateCabinetPrice(cabinet, pricingData))
@@ -70,8 +76,8 @@ export function CabinetSection({ cabinet, onChange, pricingData }: CabinetSectio
 
   if (!pricing) return null
 
-  const isLinearFoot = pricing.type === "LINEAR FOOT"
-  const displayName = cabinet.category.split(" - ").join(" - ")
+  const isLinearFoot = cabinet.measurement_type.includes("LINEAR")
+  const displayName = `${cabinet.name} (${cabinet.area}) - ${cabinet.handle_type}`
 
   return (
     <Card>
@@ -84,9 +90,9 @@ export function CabinetSection({ cabinet, onChange, pricingData }: CabinetSectio
             {isLinearFoot ? (
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <Label htmlFor={`${cabinet.category}-linear-feet`}>Linear Feet</Label>
+                  <Label htmlFor={`${cabinet.name}-linear-feet`}>Linear Feet</Label>
                   <Input
-                    id={`${cabinet.category}-linear-feet-input`}
+                    id={`${cabinet.name}-linear-feet-input`}
                     type="number"
                     value={cabinet.linearFeet || 0}
                     onChange={handleLinearFeetInputChange}
@@ -96,7 +102,7 @@ export function CabinetSection({ cabinet, onChange, pricingData }: CabinetSectio
                   />
                 </div>
                 <Slider
-                  id={`${cabinet.category}-linear-feet`}
+                  id={`${cabinet.name}-linear-feet`}
                   value={[cabinet.linearFeet || 0]}
                   min={0}
                   max={100}
@@ -106,9 +112,9 @@ export function CabinetSection({ cabinet, onChange, pricingData }: CabinetSectio
               </div>
             ) : (
               <div className="flex items-center justify-between">
-                <Label htmlFor={`${cabinet.category}-quantity`}>Quantity</Label>
+                <Label htmlFor={`${cabinet.name}-quantity`}>Quantity</Label>
                 <Input
-                  id={`${cabinet.category}-quantity`}
+                  id={`${cabinet.name}-quantity`}
                   type="number"
                   value={cabinet.quantity || 0}
                   onChange={handleQuantityChange}
@@ -121,9 +127,9 @@ export function CabinetSection({ cabinet, onChange, pricingData }: CabinetSectio
 
           <div className="space-y-4">
             <div>
-              <Label htmlFor={`${cabinet.category}-price-level`}>Price Level</Label>
+              <Label htmlFor={`${cabinet.name}-price-level`}>Price Level</Label>
               <Select value={cabinet.priceLevel.toString()} onValueChange={handlePriceLevelChange}>
-                <SelectTrigger id={`${cabinet.category}-price-level`}>
+                <SelectTrigger id={`${cabinet.name}-price-level`}>
                   <SelectValue placeholder="Select price level" />
                 </SelectTrigger>
                 <SelectContent>
@@ -138,8 +144,8 @@ export function CabinetSection({ cabinet, onChange, pricingData }: CabinetSectio
 
             {pricing.str_addon > 0 && (
               <div className="flex items-center space-x-2">
-                <Switch id={`${cabinet.category}-str`} checked={cabinet.strEnabled} onCheckedChange={handleStrToggle} />
-                <Label htmlFor={`${cabinet.category}-str`}>STR Option (+${pricing.str_addon.toFixed(2)})</Label>
+                <Switch id={`${cabinet.name}-str`} checked={cabinet.strEnabled} onCheckedChange={handleStrToggle} />
+                <Label htmlFor={`${cabinet.name}-str`}>STR Option (+${pricing.str_addon.toFixed(2)})</Label>
               </div>
             )}
           </div>

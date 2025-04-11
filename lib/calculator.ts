@@ -1,7 +1,10 @@
 import type { CabinetPricing, SurfacePricing, AddonPricing } from "./supabase"
 
 export type CabinetConfig = {
-  category: string
+  name: string
+  area: string
+  measurement_type: string
+  handle_type: string
   linearFeet?: number
   quantity?: number
   priceLevel: number
@@ -9,20 +12,24 @@ export type CabinetConfig = {
 }
 
 export type SurfaceConfig = {
-  category: string
-  material: string
+  name: string
+  area: string
+  measurement_type: string
+  material: "laminate" | "fenix" | "porcelain" | "quartz" | "stainless" | "glass_matte" | "granite"
   squareFeet: number
 }
 
 export type AddonConfig = {
   name: string
+  area: string
+  measurement_type: string
   linearFeet?: number
   quantity?: number
 }
 
 export type IslandConfig = {
   enabled: boolean
-  handleType: "Handles" | "Profiles"
+  handle_type: string
   priceLevel: number
   counterTop: SurfaceConfig
   waterfall?: SurfaceConfig
@@ -32,7 +39,7 @@ export type IslandConfig = {
 }
 
 export type CalculatorConfig = {
-  handleType: "Handles" | "Profiles"
+  handle_type: string
   cabinets: CabinetConfig[]
   surfaces: SurfaceConfig[]
   addons: AddonConfig[]
@@ -54,15 +61,23 @@ export type PricingSummary = {
 }
 
 export function calculateCabinetPrice(config: CabinetConfig, pricingData: CabinetPricing[]): number {
-  const pricing = pricingData.find((p) => p.category === config.category)
+  // Find matching cabinet pricing based on name, area, measurement_type, and handle_type
+  const pricing = pricingData.find(
+    (p) => 
+      p.name === config.name && 
+      p.area === config.area && 
+      p.measurement_type === config.measurement_type && 
+      p.handle_type === config.handle_type
+  )
+  
   if (!pricing) return 0
 
   const priceLevel = pricing[`price_level_${config.priceLevel}` as keyof CabinetPricing] as number
   const strAddon = config.strEnabled ? pricing.str_addon : 0
 
-  if (pricing.type === "LINEAR FOOT" && config.linearFeet) {
+  if (config.measurement_type.includes("LINEAR") && config.linearFeet) {
     return (priceLevel + strAddon) * config.linearFeet
-  } else if (pricing.type === "PER PIECE" && config.quantity) {
+  } else if (config.measurement_type.includes("PIECE") && config.quantity) {
     return (priceLevel + strAddon) * config.quantity
   }
 
@@ -70,20 +85,36 @@ export function calculateCabinetPrice(config: CabinetConfig, pricingData: Cabine
 }
 
 export function calculateSurfacePrice(config: SurfaceConfig, pricingData: SurfacePricing[]): number {
-  const pricing = pricingData.find((p) => p.category === config.category && p.material === config.material)
+  // Find matching surface pricing based on name, area, and measurement_type
+  const pricing = pricingData.find(
+    (p) => 
+      p.name === config.name && 
+      p.area === config.area && 
+      p.measurement_type === config.measurement_type
+  )
 
   if (!pricing) return 0
+  
+  // Get the price for the selected material
+  const materialPrice = pricing[`${config.material}_20` as keyof SurfacePricing] as number
 
-  return pricing.price * config.squareFeet
+  return materialPrice * config.squareFeet
 }
 
 export function calculateAddonPrice(config: AddonConfig, pricingData: AddonPricing[]): number {
-  const pricing = pricingData.find((p) => p.name === config.name)
+  // Find matching addon pricing based on name, area, and measurement_type
+  const pricing = pricingData.find(
+    (p) => 
+      p.name === config.name && 
+      p.area === config.area && 
+      p.measurement_type === config.measurement_type
+  )
+  
   if (!pricing) return 0
 
-  if (pricing.type === "LINEAR FOOT" && config.linearFeet) {
+  if (pricing.type.includes("LINEAR") && config.linearFeet) {
     return pricing.price * config.linearFeet
-  } else if (pricing.type === "PER PIECE" && config.quantity) {
+  } else if (pricing.type.includes("PIECE") && config.quantity) {
     return pricing.price * config.quantity
   }
 
@@ -103,7 +134,7 @@ export function calculateTotalPrice(
     const price = calculateCabinetPrice(cabinet, cabinetPricing)
     if (price > 0) {
       items.push({
-        name: cabinet.category,
+        name: `${cabinet.name} (${cabinet.area})`,
         price,
       })
     }
@@ -114,7 +145,7 @@ export function calculateTotalPrice(
     const price = calculateSurfacePrice(surface, surfacePricing)
     if (price > 0) {
       items.push({
-        name: `${surface.category} - ${surface.material}`,
+        name: `${surface.name} - ${surface.material} (${surface.area})`,
         price,
       })
     }
@@ -125,7 +156,7 @@ export function calculateTotalPrice(
     const price = calculateAddonPrice(addon, addonPricing)
     if (price > 0) {
       items.push({
-        name: addon.name,
+        name: `${addon.name} (${addon.area})`,
         price,
       })
     }
@@ -135,7 +166,10 @@ export function calculateTotalPrice(
   if (config.island?.enabled) {
     // Island cabinets
     const islandCabinet: CabinetConfig = {
-      category: `${config.island.handleType.toUpperCase()} - ISLAND`,
+      name: "Island Cabinet",
+      area: "ISLAND",
+      measurement_type: "LINEAR FOOT",
+      handle_type: config.island.handle_type,
       linearFeet: config.island.counterTop.squareFeet / 2, // Approximate linear feet from square feet
       priceLevel: config.island.priceLevel,
       strEnabled: false,

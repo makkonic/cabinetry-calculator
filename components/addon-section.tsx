@@ -21,7 +21,12 @@ interface AddonSectionProps {
 export function AddonSection({ addon, onChange, pricingData }: AddonSectionProps) {
   const [price, setPrice] = useState(0)
   const [enabled, setEnabled] = useState(false)
-  const pricing = pricingData.find((p) => p.name === addon.name)
+  const pricing = pricingData.find(
+    (p) => 
+      p.name === addon.name && 
+      p.area === addon.area && 
+      p.measurement_type === addon.measurement_type
+  )
 
   useEffect(() => {
     setPrice(calculateAddonPrice(addon, pricingData))
@@ -32,7 +37,7 @@ export function AddonSection({ addon, onChange, pricingData }: AddonSectionProps
 
   const handleToggle = (checked: boolean) => {
     if (checked) {
-      if (pricing?.type === "LINEAR FOOT") {
+      if (addon.measurement_type.includes("LINEAR")) {
         onChange({
           ...addon,
           linearFeet: 1,
@@ -44,7 +49,7 @@ export function AddonSection({ addon, onChange, pricingData }: AddonSectionProps
         })
       }
     } else {
-      if (pricing?.type === "LINEAR FOOT") {
+      if (addon.measurement_type.includes("LINEAR")) {
         onChange({
           ...addon,
           linearFeet: 0,
@@ -88,13 +93,14 @@ export function AddonSection({ addon, onChange, pricingData }: AddonSectionProps
 
   if (!pricing) return null
 
-  const isLinearFoot = pricing.type === "LINEAR FOOT"
+  const isLinearFoot = addon.measurement_type.includes("LINEAR")
+  const displayName = `${addon.name} (${addon.area})`
 
   return (
     <Card>
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-lg">{addon.name}</CardTitle>
+          <CardTitle className="text-lg">{displayName}</CardTitle>
           <Switch id={`${addon.name}-toggle`} checked={enabled} onCheckedChange={handleToggle} />
         </div>
       </CardHeader>

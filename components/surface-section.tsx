@@ -20,7 +20,16 @@ interface SurfaceSectionProps {
 
 export function SurfaceSection({ surface, onChange, pricingData }: SurfaceSectionProps) {
   const [price, setPrice] = useState(0)
-  const materials = ["laminate", "fenix", "porcelain", "quartz", "stainless", "glass matte", "granite"]
+  const materials = ["laminate", "fenix", "porcelain", "quartz", "stainless", "glass_matte", "granite"]
+  const materialLabels: Record<string, string> = {
+    laminate: "Laminate",
+    fenix: "Fenix",
+    porcelain: "Porcelain",
+    quartz: "Quartz",
+    stainless: "Stainless Steel",
+    glass_matte: "Glass Matte",
+    granite: "Granite"
+  }
 
   useEffect(() => {
     setPrice(calculateSurfacePrice(surface, pricingData))
@@ -46,11 +55,11 @@ export function SurfaceSection({ surface, onChange, pricingData }: SurfaceSectio
   const handleMaterialChange = (value: string) => {
     onChange({
       ...surface,
-      material: value,
+      material: value as any,
     })
   }
 
-  const displayName = surface.category.split(" - ").join(" - ")
+  const displayName = `${surface.name} (${surface.area})`
 
   return (
     <Card>
@@ -68,9 +77,9 @@ export function SurfaceSection({ surface, onChange, pricingData }: SurfaceSectio
             >
               {materials.map((material) => (
                 <div key={material} className="flex items-center space-x-2">
-                  <RadioGroupItem value={material} id={`${surface.category}-${material}`} />
-                  <Label htmlFor={`${surface.category}-${material}`} className="capitalize">
-                    {material}
+                  <RadioGroupItem value={material} id={`${surface.name}-${material}`} />
+                  <Label htmlFor={`${surface.name}-${material}`}>
+                    {materialLabels[material]}
                   </Label>
                 </div>
               ))}
@@ -79,9 +88,9 @@ export function SurfaceSection({ surface, onChange, pricingData }: SurfaceSectio
 
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <Label htmlFor={`${surface.category}-square-feet`}>Square Feet</Label>
+              <Label htmlFor={`${surface.name}-square-feet`}>Square Feet</Label>
               <Input
-                id={`${surface.category}-square-feet-input`}
+                id={`${surface.name}-square-feet-input`}
                 type="number"
                 value={surface.squareFeet}
                 onChange={handleSquareFeetInputChange}
@@ -91,7 +100,7 @@ export function SurfaceSection({ surface, onChange, pricingData }: SurfaceSectio
               />
             </div>
             <Slider
-              id={`${surface.category}-square-feet`}
+              id={`${surface.name}-square-feet`}
               value={[surface.squareFeet]}
               min={0}
               max={100}
