@@ -48,17 +48,7 @@ export function Calculator() {
   const [loading, setLoading] = useState(true)
 
   const [handle_type, setHandleType] = useState<string>("Handles")
-  const [cabinets, setCabinets] = useState<CabinetConfig[]>([
-    { name: "BASE", area: "KITCHEN", measurement_type: "LINEAR FOOT", handle_type: "Handles", linearFeet: 0, priceLevel: 0, strEnabled: false },
-    { name: "BASE LE MANS", area: "KITCHEN", measurement_type: "PER PIECE", handle_type: "Handles", quantity: 0, priceLevel: 0, strEnabled: false },
-    { name: "COLUMNS", area: "KITCHEN", measurement_type: "LINEAR FOOT", handle_type: "Handles", linearFeet: 0, priceLevel: 0, strEnabled: false },
-    { name: "COLUMNS LE MANS", area: "KITCHEN", measurement_type: "PER PIECE", handle_type: "Handles", quantity: 0, priceLevel: 0, strEnabled: false },
-    { name: "STACK", area: "KITCHEN", measurement_type: "LINEAR FOOT", handle_type: "Handles", linearFeet: 0, priceLevel: 0, strEnabled: false },
-    { name: "WALL", area: "KITCHEN", measurement_type: "LINEAR FOOT", handle_type: "Handles", linearFeet: 0, priceLevel: 0, strEnabled: false },
-    { name: "DW PANEL", area: "KITCHEN", measurement_type: "PER PIECE", handle_type: "Handles", quantity: 0, priceLevel: 0, strEnabled: false },
-    { name: "FRIDGE PANEL", area: "KITCHEN", measurement_type: "LINEAR FOOT", handle_type: "Handles", linearFeet: 0, priceLevel: 0, strEnabled: false },
-    { name: "SHELVES", area: "KITCHEN", measurement_type: "LINEAR FOOT", handle_type: "Handles", linearFeet: 0, priceLevel: 0, strEnabled: false },
-  ])
+  const [cabinets, setCabinets] = useState<CabinetConfig[]>([])
 
   const [surfaces, setSurfaces] = useState<SurfaceConfig[]>([
     { name: "COUNTER TOP", area: "KITCHEN", measurement_type: "SQUARE FOOT", material: "laminate", squareFeet: 0 },
@@ -88,11 +78,61 @@ export function Calculator() {
   const [activeTab, setActiveTab] = useState("cabinets")
   const [showCustomerForm, setShowCustomerForm] = useState(false)
 
+  // Generate cabinet configs from cabinet pricing data
+  const generateCabinetConfigs = (cabinetPricingData: CabinetPricing[], selectedHandleType: string) => {
+    // Create a set of unique combinations of name, area, and measurement_type
+    const uniqueCabinets = new Set<string>()
+    const cabinetConfigs: CabinetConfig[] = []
+
+    // Log the cabinet pricing data to debug
+    console.log("Cabinet Pricing Data:", cabinetPricingData)
+    console.log("Selected Handle Type:", selectedHandleType)
+
+    // If no data, return empty array
+    if (!cabinetPricingData || cabinetPricingData.length === 0) {
+      console.log("No cabinet pricing data found")
+      return []
+    }
+
+    cabinetPricingData.forEach(cabinet => {
+      // Include cabinets that either:
+      // 1. Match the selected handle type, OR
+      // 2. Have handle_type of "none" (should show regardless of selection)
+      if (cabinet.handle_type === selectedHandleType || cabinet.handle_type.toLowerCase() === "none") {
+        const key = `${cabinet.name}-${cabinet.area}-${cabinet.measurement_type}-${cabinet.handle_type}`
+        if (!uniqueCabinets.has(key)) {
+          uniqueCabinets.add(key)
+          
+          const newCabinetConfig: CabinetConfig = {
+            name: cabinet.name,
+            area: cabinet.area,
+            measurement_type: cabinet.measurement_type,
+            handle_type: cabinet.handle_type, 
+            priceLevel: 0,
+            strEnabled: false
+          }
+
+          // Add the appropriate measurement field based on measurement type
+          if (cabinet.measurement_type.includes('LINEAR')) {
+            newCabinetConfig.linearFeet = 0
+          } else {
+            newCabinetConfig.quantity = 0
+          }
+
+          cabinetConfigs.push(newCabinetConfig)
+        }
+      }
+    })
+
+    console.log("Generated Cabinet Configs:", cabinetConfigs)
+    return cabinetConfigs
+  }
+
   // Load pricing data
   useEffect(() => {
     async function loadPricingData() {
       setLoading(true)
-      const [areasData, measurementTypesData, handleTypesData, cabinets, surfaces, addons] = await Promise.all([
+      const [areasData, measurementTypesData, handleTypesData, cabinetsData, surfaces, addons] = await Promise.all([
         getAreas(),
         getMeasurementTypes(),
         getHandleTypes(),
@@ -104,24 +144,30 @@ export function Calculator() {
       setAreas(areasData)
       setMeasurementTypes(measurementTypesData)
       setHandleTypes(handleTypesData)
-      setCabinetPricing(cabinets)
+      setCabinetPricing(cabinetsData)
       setSurfacePricing(surfaces)
       setAddonPricing(addons)
+
+      const initialHandleType = handleTypesData.length > 0 ? handleTypesData[0].name : "Handles"
+      setHandleType(initialHandleType)
+      
+      // Generate cabinet configurations from the fetched data
+      const cabinetConfigs = generateCabinetConfigs(cabinetsData, initialHandleType)
+      setCabinets(cabinetConfigs)
+      
       setLoading(false)
     }
 
     loadPricingData()
   }, [])
 
-  // Update cabinet handle_type when handle type changes
+  // Update cabinets when handle type changes
   useEffect(() => {
-    setCabinets((prev) =>
-      prev.map((cabinet) => ({
-        ...cabinet,
-        handle_type
-      }))
-    )
-  }, [handle_type])
+    if (cabinetPricing.length > 0) {
+      const newCabinetConfigs = generateCabinetConfigs(cabinetPricing, handle_type)
+      setCabinets(newCabinetConfigs)
+    }
+  }, [handle_type, cabinetPricing])
 
   // Calculate transformer quantity based on LED lighting
   useEffect(() => {
@@ -206,12 +252,12 @@ export function Calculator() {
               <RadioGroup
                 value={handle_type}
                 onValueChange={(value) => setHandleType(value as string)}
-                className="flex space-x-4"
+                className="flex flex-wrap space-x-4"
               >
                 {handleTypes.map((type) => (
-                  <div key={type.id} className="flex items-center space-x-2">
+                  <div key={type.id} className="flex items-center space-x-2 mb-2">
                     <RadioGroupItem value={type.name} id={type.name} />
-                    <Label htmlFor={type.name}>{type.name}</Label>
+                    <Label htmlFor={type.name}>{type.name === "none" ? "No Handle Type" : type.name}</Label>
                   </div>
                 ))}
               </RadioGroup>
@@ -226,14 +272,20 @@ export function Calculator() {
               </TabsList>
 
               <TabsContent value="cabinets" className="space-y-6">
-                {cabinets.map((cabinet, index) => (
-                  <CabinetSection
-                    key={cabinet.name}
-                    cabinet={cabinet}
-                    onChange={(updated) => handleCabinetChange(index, updated)}
-                    pricingData={cabinetPricing}
-                  />
-                ))}
+                {cabinets.length === 0 ? (
+                  <div className="text-center p-4">
+                    <p>No cabinet options available for the selected handle type.</p>
+                  </div>
+                ) : (
+                  cabinets.map((cabinet, index) => (
+                    <CabinetSection
+                      key={`${cabinet.name}-${cabinet.area}-${cabinet.measurement_type}`}
+                      cabinet={cabinet}
+                      onChange={(updated) => handleCabinetChange(index, updated)}
+                      pricingData={cabinetPricing}
+                    />
+                  ))
+                )}
               </TabsContent>
 
               <TabsContent value="surfaces" className="space-y-6">
@@ -267,6 +319,7 @@ export function Calculator() {
                   cabinetPricing={cabinetPricing}
                   surfacePricing={surfacePricing}
                   addonPricing={addonPricing}
+                  handleTypes={handleTypes}
                 />
               </TabsContent>
             </Tabs>

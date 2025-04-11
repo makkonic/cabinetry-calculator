@@ -112,9 +112,9 @@ export function calculateAddonPrice(config: AddonConfig, pricingData: AddonPrici
   
   if (!pricing) return 0
 
-  if (pricing.type.includes("LINEAR") && config.linearFeet) {
+  if (config.measurement_type.includes("LINEAR") && config.linearFeet) {
     return pricing.price * config.linearFeet
-  } else if (pricing.type.includes("PIECE") && config.quantity) {
+  } else if (config.measurement_type.includes("PIECE") && config.quantity) {
     return pricing.price * config.quantity
   }
 

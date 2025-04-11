@@ -21,6 +21,13 @@ interface CabinetSectionProps {
 
 export function CabinetSection({ cabinet, onChange, pricingData }: CabinetSectionProps) {
   const [price, setPrice] = useState(0)
+  
+  // Log the cabinet and pricing data to debug
+  useEffect(() => {
+    console.log("Cabinet:", cabinet)
+    console.log("Available pricing data:", pricingData)
+  }, [cabinet, pricingData])
+  
   const pricing = pricingData.find(
     (p) => 
       p.name === cabinet.name && 
@@ -28,10 +35,15 @@ export function CabinetSection({ cabinet, onChange, pricingData }: CabinetSectio
       p.measurement_type === cabinet.measurement_type && 
       p.handle_type === cabinet.handle_type
   )
-
+  
   useEffect(() => {
+    if (!pricing) {
+      console.log(`No pricing found for cabinet: ${cabinet.name} in area ${cabinet.area} with handle type ${cabinet.handle_type}`)
+    } else {
+      console.log(`Found pricing for cabinet: ${cabinet.name}`, pricing)
+    }
     setPrice(calculateCabinetPrice(cabinet, pricingData))
-  }, [cabinet, pricingData])
+  }, [cabinet, pricingData, pricing])
 
   const handleLinearFeetChange = (value: number[]) => {
     onChange({
@@ -74,8 +86,7 @@ export function CabinetSection({ cabinet, onChange, pricingData }: CabinetSectio
     })
   }
 
-  if (!pricing) return null
-
+  // Render even if pricing is not found
   const isLinearFoot = cabinet.measurement_type.includes("LINEAR")
   const displayName = `${cabinet.name} (${cabinet.area}) - ${cabinet.handle_type}`
 
@@ -83,6 +94,11 @@ export function CabinetSection({ cabinet, onChange, pricingData }: CabinetSectio
     <Card>
       <CardHeader className="pb-2">
         <CardTitle className="text-lg">{displayName}</CardTitle>
+        {!pricing && (
+          <div className="text-sm text-red-500">
+            No pricing data found for this cabinet configuration
+          </div>
+        )}
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -142,7 +158,7 @@ export function CabinetSection({ cabinet, onChange, pricingData }: CabinetSectio
               </Select>
             </div>
 
-            {pricing.str_addon > 0 && (
+            {pricing && pricing.str_addon > 0 && (
               <div className="flex items-center space-x-2">
                 <Switch id={`${cabinet.name}-str`} checked={cabinet.strEnabled} onCheckedChange={handleStrToggle} />
                 <Label htmlFor={`${cabinet.name}-str`}>STR Option (+${pricing.str_addon.toFixed(2)})</Label>

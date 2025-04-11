@@ -116,11 +116,41 @@ export async function getHandleTypes() {
 
 // Fetch functions for pricing data
 export async function getCabinetPricing() {
+  console.log("Fetching cabinet pricing data")
   const { data, error } = await supabase.from("view_cabinet_pricing").select("*")
 
   if (error) {
     console.error("Error fetching cabinet pricing:", error)
     return []
+  }
+
+  console.log("Received cabinet pricing data:", data?.length, "items")
+  
+  if (!data || data.length === 0) {
+    console.log("No cabinet pricing data returned from Supabase")
+    
+    // Provide a fallback for testing if no data is returned
+    return [
+      {
+        id: 1,
+        name: "BASE",
+        handle_type: "Handles",
+        area: "KITCHEN",
+        measurement_type: "LINEAR FOOT",
+        price_level_0: 100,
+        price_level_1: 120,
+        price_level_2: 140,
+        price_level_3: 160,
+        price_level_4: 180,
+        price_level_5: 200,
+        price_level_6: 220,
+        price_level_7: 240,
+        price_level_8: 260,
+        price_level_9: 280,
+        price_level_10: 300,
+        str_addon: 50
+      }
+    ]
   }
 
   return data as CabinetPricing[]

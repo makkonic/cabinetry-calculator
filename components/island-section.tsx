@@ -1,15 +1,17 @@
 "use client"
 
 import type React from "react"
-import type { IslandConfig } from "@/lib/calculator"
-import type { CabinetPricing, SurfacePricing, AddonPricing } from "@/lib/supabase"
+import { useState, useEffect } from "react"
+import type { IslandConfig, SurfaceConfig, AddonConfig } from "@/lib/calculator"
+import type { CabinetPricing, SurfacePricing, AddonPricing, HandleType } from "@/lib/supabase"
+import { calculateCabinetPrice, calculateSurfacePrice, calculateAddonPrice } from "@/lib/calculator"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Slider } from "@/components/ui/slider"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 
 interface IslandSectionProps {
   island: IslandConfig
@@ -17,12 +19,94 @@ interface IslandSectionProps {
   cabinetPricing: CabinetPricing[]
   surfacePricing: SurfacePricing[]
   addonPricing: AddonPricing[]
+  handleTypes?: HandleType[]
 }
 
-export function IslandSection({ island, onChange, cabinetPricing, surfacePricing, addonPricing }: IslandSectionProps) {
-  const materials = ["laminate", "fenix", "porcelain", "quartz", "stainless", "glass matte", "granite"]
+export function IslandSection({
+  island,
+  onChange,
+  cabinetPricing,
+  surfacePricing,
+  addonPricing,
+  handleTypes,
+}: IslandSectionProps) {
+  const [cabinetPrice, setCabinetPrice] = useState(0)
+  const [counterTopPrice, setCounterTopPrice] = useState(0)
+  const [waterfallPrice, setWaterfallPrice] = useState(0)
+  const [aluminumProfilesPrice, setAluminumProfilesPrice] = useState(0)
+  const [aluminumToeKicksPrice, setAluminumToeKicksPrice] = useState(0)
+  const [integratedSinkPrice, setIntegratedSinkPrice] = useState(0)
+  const [totalPrice, setTotalPrice] = useState(0)
 
-  const handleToggle = (checked: boolean) => {
+  // Materials for surface selection
+  const materials = ["laminate", "fenix", "porcelain", "quartz", "stainless", "glass_matte", "granite"]
+  const materialLabels: Record<string, string> = {
+    laminate: "Laminate",
+    fenix: "Fenix",
+    porcelain: "Porcelain",
+    quartz: "Quartz",
+    stainless: "Stainless Steel",
+    glass_matte: "Glass Matte",
+    granite: "Granite"
+  }
+
+  // Calculate prices whenever island config changes
+  useEffect(() => {
+    if (!island.enabled) {
+      setTotalPrice(0)
+      return
+    }
+
+    // Calculate cabinet price
+    const islandCabinet = {
+      name: "Island Cabinet",
+      area: "ISLAND",
+      measurement_type: "LINEAR FOOT",
+      handle_type: island.handle_type,
+      linearFeet: island.counterTop.squareFeet / 2, // Approximate linear feet from square feet
+      priceLevel: island.priceLevel,
+      strEnabled: false,
+    }
+    const cabPrice = calculateCabinetPrice(islandCabinet, cabinetPricing)
+    setCabinetPrice(cabPrice)
+
+    // Calculate counter top price
+    const ctopPrice = calculateSurfacePrice(island.counterTop, surfacePricing)
+    setCounterTopPrice(ctopPrice)
+
+    // Calculate waterfall price
+    let wfPrice = 0
+    if (island.waterfall && island.waterfall.squareFeet > 0) {
+      wfPrice = calculateSurfacePrice(island.waterfall, surfacePricing)
+    }
+    setWaterfallPrice(wfPrice)
+
+    // Calculate aluminum profiles price
+    let alProfilesPrice = 0
+    if (island.aluminumProfiles && island.aluminumProfiles.linearFeet) {
+      alProfilesPrice = calculateAddonPrice(island.aluminumProfiles, addonPricing)
+    }
+    setAluminumProfilesPrice(alProfilesPrice)
+
+    // Calculate aluminum toe kicks price
+    let alToeKicksPrice = 0
+    if (island.aluminumToeKicks && island.aluminumToeKicks.linearFeet) {
+      alToeKicksPrice = calculateAddonPrice(island.aluminumToeKicks, addonPricing)
+    }
+    setAluminumToeKicksPrice(alToeKicksPrice)
+
+    // Calculate integrated sink price
+    let intSinkPrice = 0
+    if (island.integratedSink && island.integratedSink.quantity) {
+      intSinkPrice = calculateAddonPrice(island.integratedSink, addonPricing)
+    }
+    setIntegratedSinkPrice(intSinkPrice)
+
+    // Calculate total price
+    setTotalPrice(cabPrice + ctopPrice + wfPrice + alProfilesPrice + alToeKicksPrice + intSinkPrice)
+  }, [island, cabinetPricing, surfacePricing, addonPricing])
+
+  const handleEnabledChange = (checked: boolean) => {
     onChange({
       ...island,
       enabled: checked,
@@ -32,7 +116,7 @@ export function IslandSection({ island, onChange, cabinetPricing, surfacePricing
   const handleHandleTypeChange = (value: string) => {
     onChange({
       ...island,
-      handleType: value as "Handles" | "Profiles",
+      handle_type: value,
     })
   }
 
@@ -48,19 +132,18 @@ export function IslandSection({ island, onChange, cabinetPricing, surfacePricing
       ...island,
       counterTop: {
         ...island.counterTop,
-        material: value,
+        material: value as any,
       },
-      // Update waterfall material to match counter top
       waterfall: island.waterfall
         ? {
             ...island.waterfall,
-            material: value,
+            material: value as any,
           }
         : undefined,
     })
   }
 
-  const handleCounterTopSquareFeetChange = (value: number[]) => {
+  const handleCounterTopAreaChange = (value: number[]) => {
     onChange({
       ...island,
       counterTop: {
@@ -70,7 +153,7 @@ export function IslandSection({ island, onChange, cabinetPricing, surfacePricing
     })
   }
 
-  const handleCounterTopSquareFeetInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCounterTopAreaInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = Number.parseFloat(e.target.value)
     if (!isNaN(value) && value >= 0) {
       onChange({
@@ -83,381 +166,403 @@ export function IslandSection({ island, onChange, cabinetPricing, surfacePricing
     }
   }
 
-  const handleWaterfallToggle = (checked: boolean) => {
-    if (checked) {
-      onChange({
-        ...island,
-        waterfall: {
-          category: "WATERFALL",
-          material: island.counterTop.material,
-          squareFeet: 0,
-        },
-      })
-    } else {
-      onChange({
-        ...island,
-        waterfall: undefined,
-      })
-    }
+  const handleWaterfallAreaChange = (value: number[]) => {
+    onChange({
+      ...island,
+      waterfall: {
+        ...island.waterfall!,
+        squareFeet: value[0],
+      },
+    })
   }
 
-  const handleWaterfallSquareFeetChange = (value: number[]) => {
-    if (island.waterfall) {
-      onChange({
-        ...island,
-        waterfall: {
-          ...island.waterfall,
-          squareFeet: value[0],
-        },
-      })
-    }
-  }
-
-  const handleWaterfallSquareFeetInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleWaterfallAreaInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = Number.parseFloat(e.target.value)
-    if (!isNaN(value) && value >= 0 && island.waterfall) {
+    if (!isNaN(value) && value >= 0) {
       onChange({
         ...island,
         waterfall: {
-          ...island.waterfall,
+          ...island.waterfall!,
           squareFeet: value,
         },
       })
     }
   }
 
-  const handleAluminumProfilesToggle = (checked: boolean) => {
-    if (checked) {
-      onChange({
-        ...island,
-        aluminumProfiles: {
-          name: "ALUMINUM PROFILES",
-          linearFeet: 1,
-        },
-      })
-    } else {
-      onChange({
-        ...island,
-        aluminumProfiles: undefined,
-      })
-    }
+  const handleWaterfallEnabledChange = (checked: boolean) => {
+    onChange({
+      ...island,
+      waterfall: checked
+        ? {
+            name: "WATERFALL",
+            area: "ISLAND",
+            measurement_type: "SQUARE FOOT",
+            material: island.counterTop.material,
+            squareFeet: 0,
+          }
+        : undefined,
+    })
   }
 
-  const handleAluminumProfilesLinearFeetChange = (value: number[]) => {
-    if (island.aluminumProfiles) {
-      onChange({
-        ...island,
-        aluminumProfiles: {
-          ...island.aluminumProfiles,
-          linearFeet: value[0],
-        },
-      })
-    }
+  const handleAluminumProfilesChange = (value: number[]) => {
+    onChange({
+      ...island,
+      aluminumProfiles: {
+        ...island.aluminumProfiles!,
+        linearFeet: value[0],
+      },
+    })
   }
 
-  const handleAluminumProfilesLinearFeetInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAluminumProfilesInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = Number.parseFloat(e.target.value)
-    if (!isNaN(value) && value >= 0 && island.aluminumProfiles) {
+    if (!isNaN(value) && value >= 0) {
       onChange({
         ...island,
         aluminumProfiles: {
-          ...island.aluminumProfiles,
+          ...island.aluminumProfiles!,
           linearFeet: value,
         },
       })
     }
   }
 
-  const handleAluminumToeKicksToggle = (checked: boolean) => {
-    if (checked) {
-      onChange({
-        ...island,
-        aluminumToeKicks: {
-          name: "ALUMINUM TOE KICKS",
-          linearFeet: 1,
-        },
-      })
-    } else {
-      onChange({
-        ...island,
-        aluminumToeKicks: undefined,
-      })
-    }
+  const handleAluminumProfilesEnabledChange = (checked: boolean) => {
+    onChange({
+      ...island,
+      aluminumProfiles: checked
+        ? {
+            name: "ALUMINUM PROFILES",
+            area: "ISLAND",
+            measurement_type: "LINEAR FOOT",
+            linearFeet: 0,
+          }
+        : undefined,
+    })
   }
 
-  const handleAluminumToeKicksLinearFeetChange = (value: number[]) => {
-    if (island.aluminumToeKicks) {
-      onChange({
-        ...island,
-        aluminumToeKicks: {
-          ...island.aluminumToeKicks,
-          linearFeet: value[0],
-        },
-      })
-    }
+  const handleAluminumToeKicksChange = (value: number[]) => {
+    onChange({
+      ...island,
+      aluminumToeKicks: {
+        ...island.aluminumToeKicks!,
+        linearFeet: value[0],
+      },
+    })
   }
 
-  const handleAluminumToeKicksLinearFeetInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAluminumToeKicksInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = Number.parseFloat(e.target.value)
-    if (!isNaN(value) && value >= 0 && island.aluminumToeKicks) {
+    if (!isNaN(value) && value >= 0) {
       onChange({
         ...island,
         aluminumToeKicks: {
-          ...island.aluminumToeKicks,
+          ...island.aluminumToeKicks!,
           linearFeet: value,
         },
       })
     }
   }
 
-  const handleIntegratedSinkToggle = (checked: boolean) => {
-    if (checked) {
-      onChange({
-        ...island,
-        integratedSink: {
-          name: "INTEGRATED SINK",
-          quantity: 1,
-        },
-      })
-    } else {
-      onChange({
-        ...island,
-        integratedSink: undefined,
-      })
-    }
+  const handleAluminumToeKicksEnabledChange = (checked: boolean) => {
+    onChange({
+      ...island,
+      aluminumToeKicks: checked
+        ? {
+            name: "ALUMINUM TOE KICKS",
+            area: "ISLAND",
+            measurement_type: "LINEAR FOOT",
+            linearFeet: 0,
+          }
+        : undefined,
+    })
   }
 
-  const handleIntegratedSinkQuantityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = Number.parseInt(e.target.value)
-    if (!isNaN(value) && value >= 0 && island.integratedSink) {
-      onChange({
-        ...island,
-        integratedSink: {
-          ...island.integratedSink,
-          quantity: value,
-        },
-      })
-    }
+  const handleIntegratedSinkChange = (value: string) => {
+    const quantity = Number.parseInt(value)
+    onChange({
+      ...island,
+      integratedSink: {
+        ...island.integratedSink!,
+        quantity,
+      },
+    })
+  }
+
+  const handleIntegratedSinkEnabledChange = (checked: boolean) => {
+    onChange({
+      ...island,
+      integratedSink: checked
+        ? {
+            name: "INTEGRATED SINK",
+            area: "ISLAND",
+            measurement_type: "PER PIECE",
+            quantity: 1,
+          }
+        : undefined,
+    })
   }
 
   return (
     <Card>
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-lg">Island Configuration</CardTitle>
-          <Switch id="island-toggle" checked={island.enabled} onCheckedChange={handleToggle} />
+          <CardTitle className="text-lg">Island</CardTitle>
+          <Switch id="island-enabled" checked={island.enabled} onCheckedChange={handleEnabledChange} />
         </div>
       </CardHeader>
       {island.enabled && (
-        <CardContent className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label className="mb-2 block">Handle Type</Label>
-              <RadioGroup value={island.handleType} onValueChange={handleHandleTypeChange} className="flex space-x-4">
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="Handles" id="island-handles" />
-                  <Label htmlFor="island-handles">Handles</Label>
+        <CardContent>
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label className="mb-2 block">Handle Type</Label>
+                <Select value={island.handle_type} onValueChange={handleHandleTypeChange}>
+                  <SelectTrigger id="island-handle-type">
+                    <SelectValue placeholder="Select handle type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {handleTypes?.map((handleType) => (
+                      <SelectItem key={handleType.id} value={handleType.name}>
+                        {handleType.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="mb-2 block">Price Level</Label>
+                <Select value={island.priceLevel.toString()} onValueChange={handlePriceLevelChange}>
+                  <SelectTrigger id="island-price-level">
+                    <SelectValue placeholder="Select price level" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: 11 }, (_, i) => (
+                      <SelectItem key={i} value={i.toString()}>
+                        Level {i}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <h3 className="text-md font-semibold">Counter Top</h3>
+              <div className="space-y-4">
+                <div>
+                  <Label className="mb-2 block">Material</Label>
+                  <RadioGroup
+                    value={island.counterTop.material}
+                    onValueChange={handleCounterTopMaterialChange}
+                    className="grid grid-cols-2 md:grid-cols-4 gap-2"
+                  >
+                    {materials.map((material) => (
+                      <div key={material} className="flex items-center space-x-2">
+                        <RadioGroupItem value={material} id={`island-countertop-${material}`} />
+                        <Label htmlFor={`island-countertop-${material}`}>
+                          {materialLabels[material]}
+                        </Label>
+                      </div>
+                    ))}
+                  </RadioGroup>
                 </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="Profiles" id="island-profiles" />
-                  <Label htmlFor="island-profiles">Profiles</Label>
-                </div>
-              </RadioGroup>
-            </div>
 
-            <div>
-              <Label htmlFor="island-price-level" className="mb-2 block">
-                Price Level
-              </Label>
-              <Select value={island.priceLevel.toString()} onValueChange={handlePriceLevelChange}>
-                <SelectTrigger id="island-price-level">
-                  <SelectValue placeholder="Select price level" />
-                </SelectTrigger>
-                <SelectContent>
-                  {Array.from({ length: 11 }, (_, i) => (
-                    <SelectItem key={i} value={i.toString()}>
-                      Level {i}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            <Label className="mb-2 block">Counter Top Material</Label>
-            <RadioGroup
-              value={island.counterTop.material}
-              onValueChange={handleCounterTopMaterialChange}
-              className="grid grid-cols-2 md:grid-cols-4 gap-2"
-            >
-              {materials.map((material) => (
-                <div key={material} className="flex items-center space-x-2">
-                  <RadioGroupItem value={material} id={`island-counter-top-${material}`} />
-                  <Label htmlFor={`island-counter-top-${material}`} className="capitalize">
-                    {material}
-                  </Label>
-                </div>
-              ))}
-            </RadioGroup>
-          </div>
-
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="island-counter-top-square-feet">Counter Top Square Feet</Label>
-              <Input
-                id="island-counter-top-square-feet-input"
-                type="number"
-                value={island.counterTop.squareFeet}
-                onChange={handleCounterTopSquareFeetInputChange}
-                className="w-20 text-right"
-                min={0}
-                step={0.01}
-              />
-            </div>
-            <Slider
-              id="island-counter-top-square-feet"
-              value={[island.counterTop.squareFeet]}
-              min={0}
-              max={100}
-              step={0.01}
-              onValueChange={handleCounterTopSquareFeetChange}
-            />
-          </div>
-
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="island-waterfall-toggle">Waterfall</Label>
-              <Switch
-                id="island-waterfall-toggle"
-                checked={!!island.waterfall}
-                onCheckedChange={handleWaterfallToggle}
-              />
-            </div>
-
-            {island.waterfall && (
-              <div className="pl-6 space-y-4">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="island-waterfall-square-feet">Waterfall Square Feet</Label>
-                  <Input
-                    id="island-waterfall-square-feet-input"
-                    type="number"
-                    value={island.waterfall.squareFeet}
-                    onChange={handleWaterfallSquareFeetInputChange}
-                    className="w-20 text-right"
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="island-countertop-area">Square Feet</Label>
+                    <Input
+                      id="island-countertop-area-input"
+                      type="number"
+                      value={island.counterTop.squareFeet}
+                      onChange={handleCounterTopAreaInputChange}
+                      className="w-20 text-right"
+                      min={0}
+                      step={0.01}
+                    />
+                  </div>
+                  <Slider
+                    id="island-countertop-area"
+                    value={[island.counterTop.squareFeet]}
                     min={0}
+                    max={100}
                     step={0.01}
+                    onValueChange={handleCounterTopAreaChange}
                   />
                 </div>
-                <Slider
-                  id="island-waterfall-square-feet"
-                  value={[island.waterfall.squareFeet]}
-                  min={0}
-                  max={100}
-                  step={0.01}
-                  onValueChange={handleWaterfallSquareFeetChange}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <h3 className="text-md font-semibold">Waterfall</h3>
+                <Switch
+                  id="island-waterfall-enabled"
+                  checked={!!island.waterfall}
+                  onCheckedChange={handleWaterfallEnabledChange}
                 />
               </div>
-            )}
-          </div>
-
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="island-aluminum-profiles-toggle">Aluminum Profiles</Label>
-              <Switch
-                id="island-aluminum-profiles-toggle"
-                checked={!!island.aluminumProfiles}
-                onCheckedChange={handleAluminumProfilesToggle}
-              />
-            </div>
-
-            {island.aluminumProfiles && (
-              <div className="pl-6 space-y-4">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="island-aluminum-profiles-linear-feet">Linear Feet</Label>
-                  <Input
-                    id="island-aluminum-profiles-linear-feet-input"
-                    type="number"
-                    value={island.aluminumProfiles.linearFeet}
-                    onChange={handleAluminumProfilesLinearFeetInputChange}
-                    className="w-20 text-right"
+              {island.waterfall && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="island-waterfall-area">Square Feet</Label>
+                    <Input
+                      id="island-waterfall-area-input"
+                      type="number"
+                      value={island.waterfall.squareFeet}
+                      onChange={handleWaterfallAreaInputChange}
+                      className="w-20 text-right"
+                      min={0}
+                      step={0.01}
+                    />
+                  </div>
+                  <Slider
+                    id="island-waterfall-area"
+                    value={[island.waterfall.squareFeet]}
                     min={0}
+                    max={100}
                     step={0.01}
+                    onValueChange={handleWaterfallAreaChange}
                   />
                 </div>
-                <Slider
-                  id="island-aluminum-profiles-linear-feet"
-                  value={[island.aluminumProfiles.linearFeet || 0]}
-                  min={0}
-                  max={100}
-                  step={0.01}
-                  onValueChange={handleAluminumProfilesLinearFeetChange}
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <h3 className="text-md font-semibold">Aluminum Profiles</h3>
+                <Switch
+                  id="island-aluminum-profiles-enabled"
+                  checked={!!island.aluminumProfiles}
+                  onCheckedChange={handleAluminumProfilesEnabledChange}
                 />
               </div>
-            )}
-          </div>
-
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="island-aluminum-toe-kicks-toggle">Aluminum Toe Kicks</Label>
-              <Switch
-                id="island-aluminum-toe-kicks-toggle"
-                checked={!!island.aluminumToeKicks}
-                onCheckedChange={handleAluminumToeKicksToggle}
-              />
-            </div>
-
-            {island.aluminumToeKicks && (
-              <div className="pl-6 space-y-4">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="island-aluminum-toe-kicks-linear-feet">Linear Feet</Label>
-                  <Input
-                    id="island-aluminum-toe-kicks-linear-feet-input"
-                    type="number"
-                    value={island.aluminumToeKicks.linearFeet}
-                    onChange={handleAluminumToeKicksLinearFeetInputChange}
-                    className="w-20 text-right"
+              {island.aluminumProfiles && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="island-aluminum-profiles">Linear Feet</Label>
+                    <Input
+                      id="island-aluminum-profiles-input"
+                      type="number"
+                      value={island.aluminumProfiles.linearFeet || 0}
+                      onChange={handleAluminumProfilesInputChange}
+                      className="w-20 text-right"
+                      min={0}
+                      step={0.01}
+                    />
+                  </div>
+                  <Slider
+                    id="island-aluminum-profiles"
+                    value={[island.aluminumProfiles.linearFeet || 0]}
                     min={0}
+                    max={100}
                     step={0.01}
+                    onValueChange={handleAluminumProfilesChange}
                   />
                 </div>
-                <Slider
-                  id="island-aluminum-toe-kicks-linear-feet"
-                  value={[island.aluminumToeKicks.linearFeet || 0]}
-                  min={0}
-                  max={100}
-                  step={0.01}
-                  onValueChange={handleAluminumToeKicksLinearFeetChange}
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <h3 className="text-md font-semibold">Aluminum Toe Kicks</h3>
+                <Switch
+                  id="island-aluminum-toe-kicks-enabled"
+                  checked={!!island.aluminumToeKicks}
+                  onCheckedChange={handleAluminumToeKicksEnabledChange}
                 />
               </div>
-            )}
-          </div>
-
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="island-integrated-sink-toggle">Integrated Sink</Label>
-              <Switch
-                id="island-integrated-sink-toggle"
-                checked={!!island.integratedSink}
-                onCheckedChange={handleIntegratedSinkToggle}
-              />
-            </div>
-
-            {island.integratedSink && (
-              <div className="pl-6">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="island-integrated-sink-quantity">Quantity</Label>
-                  <Input
-                    id="island-integrated-sink-quantity"
-                    type="number"
-                    value={island.integratedSink.quantity}
-                    onChange={handleIntegratedSinkQuantityChange}
-                    className="w-20 text-right"
+              {island.aluminumToeKicks && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="island-aluminum-toe-kicks">Linear Feet</Label>
+                    <Input
+                      id="island-aluminum-toe-kicks-input"
+                      type="number"
+                      value={island.aluminumToeKicks.linearFeet || 0}
+                      onChange={handleAluminumToeKicksInputChange}
+                      className="w-20 text-right"
+                      min={0}
+                      step={0.01}
+                    />
+                  </div>
+                  <Slider
+                    id="island-aluminum-toe-kicks"
+                    value={[island.aluminumToeKicks.linearFeet || 0]}
                     min={0}
+                    max={100}
+                    step={0.01}
+                    onValueChange={handleAluminumToeKicksChange}
                   />
                 </div>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <h3 className="text-md font-semibold">Integrated Sink</h3>
+                <Switch
+                  id="island-integrated-sink-enabled"
+                  checked={!!island.integratedSink}
+                  onCheckedChange={handleIntegratedSinkEnabledChange}
+                />
               </div>
-            )}
+              {island.integratedSink && (
+                <div>
+                  <Select
+                    value={island.integratedSink.quantity?.toString() || "0"}
+                    onValueChange={handleIntegratedSinkChange}
+                  >
+                    <SelectTrigger id="island-integrated-sink">
+                      <SelectValue placeholder="Select quantity" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Array.from({ length: 11 }, (_, i) => (
+                        <SelectItem key={i} value={i.toString()}>
+                          {i === 0 ? "None" : i === 1 ? "1 Sink" : `${i} Sinks`}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <h3 className="text-md font-semibold">Island Pricing</h3>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div>Cabinet:</div>
+                <div className="text-right">${cabinetPrice.toFixed(2)}</div>
+                <div>Counter Top:</div>
+                <div className="text-right">${counterTopPrice.toFixed(2)}</div>
+                {waterfallPrice > 0 && (
+                  <>
+                    <div>Waterfall:</div>
+                    <div className="text-right">${waterfallPrice.toFixed(2)}</div>
+                  </>
+                )}
+                {aluminumProfilesPrice > 0 && (
+                  <>
+                    <div>Aluminum Profiles:</div>
+                    <div className="text-right">${aluminumProfilesPrice.toFixed(2)}</div>
+                  </>
+                )}
+                {aluminumToeKicksPrice > 0 && (
+                  <>
+                    <div>Aluminum Toe Kicks:</div>
+                    <div className="text-right">${aluminumToeKicksPrice.toFixed(2)}</div>
+                  </>
+                )}
+                {integratedSinkPrice > 0 && (
+                  <>
+                    <div>Integrated Sink:</div>
+                    <div className="text-right">${integratedSinkPrice.toFixed(2)}</div>
+                  </>
+                )}
+                <div className="font-semibold">Total:</div>
+                <div className="text-right font-bold">${totalPrice.toFixed(2)}</div>
+              </div>
+            </div>
           </div>
         </CardContent>
       )}
