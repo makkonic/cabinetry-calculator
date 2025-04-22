@@ -48,3 +48,6 @@ node_modules/
 # Task files
 tasks.json
 tasks/ 
+
+# API keys and sensitive information
+.cursor/mcp.json 
