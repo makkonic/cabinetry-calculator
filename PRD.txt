@@ -1,0 +1,262 @@
+# Kitchen Cabinet Calculator - Product Requirements Document
+
+# Overview
+The Kitchen Cabinet Calculator is a specialized tool designed for sales representatives in the cabinetry and remodeling industry. This application enables sales reps to quickly generate accurate price estimates for cabinetry remodeling projects. Initially focused on kitchen remodels, with future plans to expand to other rooms (bathroom, laundry room, bedroom, etc.). After configuring the remodel specifications, sales reps can generate and print detailed pricing reports to present to potential customers, streamlining the sales process and improving customer experience.
+
+# Core Features
+
+## 1. Kitchen Configuration
+- **Cabinet Configuration**
+  - Handle type selection (pulls, knobs, integrated, etc.)
+  - Cabinet quantity input using linear feet measurement
+  - Price level selection (using numeric levels 0-10)
+  - Room name selection
+
+- **Surface Material Selection**
+  - Countertop material options (laminate, fenix, porcelain, quartz, stainless, glass_matte, granite)
+  - Backsplash material selection
+  - Surface area specification using square feet
+  - Material-specific pricing
+
+- **Kitchen Add-ons**
+  - LED lighting (with linear feet measurement)
+  - Aluminum profiles (with linear feet measurement)
+  - Aluminum toe kicks (with linear feet measurement)
+  - Integrated sink options (quantity-based)
+  - Power strips (quantity-based)
+  - Transformer for LED lighting (quantity calculated based on LED length)
+
+## 2. Island Configuration
+- **Island Cabinet Options**
+  - Enable/disable island feature
+  - Handle type selection independent from main kitchen cabinets
+  - Price level selection (0-10)
+  - Room name selection
+
+- **Island Surface Options**
+  - Countertop material selection (same material options as main kitchen)
+  - Waterfall edge options (enable/disable, dimensions in square feet)
+  - Surface area input using square feet
+
+- **Island Add-ons**
+  - Aluminum profiles (enable/disable, linear feet)
+  - Aluminum toe kicks (enable/disable, linear feet)
+  - Integrated sink (enable/disable, quantity selection)
+
+## 3. Real-time Pricing Engine
+- **Component-based Calculation**
+  - Individual pricing for each cabinet component
+  - Surface material pricing based on square footage and material type
+  - Add-on pricing based on quantity or dimensions
+  - Automatic calculation of dependencies (e.g., LED lighting requires transformers)
+
+- **Pricing Structure**
+  - Numeric price levels (0-10) for cabinetry components
+  - Material-specific pricing for surfaces
+  - Add-on pricing with appropriate measurements (linear feet or quantity)
+  - Automatic calculation of subtotal, buffer (5%), and tariff (10%)
+  - Multiple markup calculations: trade price (40%), retail price 1 (100%), retail price 2 (150%)
+
+## 4. Estimate Reporting
+- **Detailed Breakdown**
+  - Itemized list of all selected components with individual pricing
+  - Subtotal calculation
+  - Applied buffer and tariff calculations
+  - Final pricing at different markup levels
+
+- **Print/Export Options**
+  - Generate printer-friendly format
+  - Option to present the estimate to the customer
+
+# User Experience
+
+## User Personas
+- **Primary: Sales Representatives**
+  - Field-based sales reps who need quick, accurate estimates
+  - Showroom consultants working directly with customers
+  - Sales managers reviewing and approving estimates
+
+## Key User Flows
+1. **Kitchen Configuration Flow**
+   - Select handle type
+   - Enter cabinet quantities and select price level
+   - Configure surfaces (material, dimensions)
+   - Add optional components (LED lighting, etc.)
+   - Configure island (if needed)
+   - Review and generate pricing
+
+2. **Estimate Modification**
+   - Adjust measurements or quantities
+   - Change material selections
+   - Add or remove components
+   - Recalculate pricing in real-time
+
+3. **Estimate Presentation**
+   - Review detailed breakdown with customer
+   - Present different pricing options
+   - Print or share the estimate
+
+## UI/UX Considerations
+- Clean, professional interface appropriate for customer-facing interactions
+- Intuitive tab-based navigation between different configuration sections
+- Real-time pricing updates as selections change
+- Responsive design for various device sizes
+- Clear visual indicators for selected options
+
+# Technical Architecture
+
+## System Components
+- **Frontend**
+  - React/Next.js single-page application
+  - Component-based architecture for reusability
+  - State management for complex configuration options
+  - Responsive design for cross-device compatibility
+
+- **Calculation Engine**
+  - JavaScript-based pricing calculator
+  - JSON configuration for pricing rules and dependencies
+  - Modular design for easy updates to pricing structures
+
+- **Data Models**
+  - Cabinet configuration schemas
+  - Surface material definitions
+  - Pricing matrices for different components and price levels
+  - Add-on configuration schemas
+
+## Development Roadmap
+
+### MVP Requirements (Phase 1)
+1. **Core Kitchen Calculator Functionality**
+   - Basic kitchen configuration (handle types, cabinets, price levels)
+   - Surface material selection and configuration
+   - Kitchen add-ons (LED lighting, aluminum profiles, etc.)
+   - Island configuration
+   - Real-time pricing calculation
+
+2. **Essential User Interface**
+   - Tab-based navigation between configuration sections
+   - Form controls for measurements and selections
+   - Real-time price display
+   - Basic estimate summary
+
+3. **Basic Reporting**
+   - Itemized pricing breakdown
+   - Printable format
+   - Multiple pricing tiers display (trade, retail)
+
+### Future Enhancements (Phase 2)
+1. **Extended Room Support**
+   - Add support for bathroom remodeling
+   - Add support for laundry room cabinets
+   - Add support for bedroom/closet cabinets
+   - Room-specific cabinet and fixture options
+   - Multi-room projects within a single estimate
+
+2. **Advanced Configuration Options**
+   - Expanded material library
+   - Additional add-on components
+   - Custom cabinet specifications
+   - More granular pricing controls
+
+3. **Enhanced Reporting**
+   - Customizable report templates
+   - Company branding options
+   - Side-by-side comparisons of different configurations
+   - Digital signature capabilities
+
+### Additional Features (Phase 3)
+1. **User Management**
+   - Sales rep accounts and authentication
+   - User-specific pricing permissions
+   - Customer database integration
+   - Estimate history and tracking
+
+2. **Visualization Tools**
+   - Basic 2D renderings of cabinet layouts
+   - Material and color visualization
+   - Measurement validation tools
+
+3. **Integration Capabilities**
+   - CRM system integration
+   - Inventory management connection
+   - Order placement functionality
+   - Calendar booking for installation scheduling
+
+# Logical Dependency Chain
+1. **Foundation Components**
+   - Establish core calculation engine and pricing models
+   - Implement basic UI framework and navigation
+   - Create fundamental data structures for configurations
+
+2. **First Usable Frontend**
+   - Kitchen cabinet configuration interface
+   - Surface material selection
+   - Real-time pricing display
+   - Basic estimate generation
+
+3. **Feature Expansion (Iterative)**
+   - Add island configuration capabilities
+   - Implement add-on components
+   - Enhance reporting functionality
+   - Refine user interface based on feedback
+
+4. **Refinement and Polish**
+   - Optimize calculation performance
+   - Improve print formatting
+   - Add data validation and error handling
+   - Enhance mobile responsiveness
+
+5. **Multi-room Expansion**
+   - Add support for new room types
+   - Implement room-specific components
+   - Enhance UI for multi-room projects
+   - Update pricing engine for multiple rooms
+
+# Risks and Mitigations
+
+## Technical Challenges
+- **Complex Pricing Calculations**
+  - *Risk*: Difficult to maintain accurate pricing with many interdependent variables
+  - *Mitigation*: Modular calculation system with clear dependency mapping and extensive testing
+
+- **Performance Issues**
+  - *Risk*: Slow calculation or rendering with complex configurations
+  - *Mitigation*: Implement efficient state management and optimize rendering cycles
+
+## MVP Scope
+- **Feature Creep**
+  - *Risk*: Adding too many features before establishing core functionality
+  - *Mitigation*: Strict prioritization of features based on sales process needs
+
+- **Complexity vs. Usability**
+  - *Risk*: Creating a system too complex for efficient sales use
+  - *Mitigation*: Regular usability testing with actual sales representatives
+
+## Resource Constraints
+- **Pricing Data Maintenance**
+  - *Risk*: Difficulty keeping pricing data current and accurate
+  - *Mitigation*: Design for easy updates to pricing structures
+
+- **Multi-room Expansion Complexity**
+  - *Risk*: Increased complexity when adding support for multiple room types
+  - *Mitigation*: Modular design approach that allows for room-specific components without code duplication
+
+# Appendix
+
+## Technical Specifications
+- **Browser Support**
+  - Chrome (latest 2 versions)
+  - Safari (latest 2 versions)
+  - Edge (latest 2 versions)
+  - Mobile browsers on iOS and Android
+
+- **Deployment Requirements**
+  - Static hosting with CDN capability
+  - No server-side requirements for MVP
+  - Local storage for estimate saving in initial version
+
+## Research Findings
+- Sales representatives spend an average of 45 minutes creating manual estimates
+- Accuracy of manual estimates varies by 15-20% between representatives
+- Customers are 60% more likely to proceed when presented with a professional, detailed estimate
+- Most customer questions revolve around material options and pricing breakdowns 

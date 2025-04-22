@@ -6,21 +6,23 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 // Base data types
+export type Room = {
+  name: string  // PK
+  description: string
+}
+
 export type Area = {
-  id: number
-  name: string
+  name: string  // PK
   description: string
 }
 
 export type MeasurementType = {
-  id: number
-  name: string
+  name: string  // PK
   description: string
 }
 
 export type HandleType = {
-  id: number
-  name: string
+  name: string  // PK
   description: string
 }
 
@@ -28,9 +30,10 @@ export type HandleType = {
 export type CabinetPricing = {
   id: number
   name: string
-  handle_type: string
-  area: string
-  measurement_type: string
+  handle_type: string  // FK to handle_types.name
+  area: string  // FK to areas.name
+  room_name: string  // FK to room.name
+  measurement_type: string  // FK to measurement_types.name
   price_level_0: number
   price_level_1: number
   price_level_2: number
@@ -43,13 +46,15 @@ export type CabinetPricing = {
   price_level_9: number
   price_level_10: number
   str_addon: number
+  created_at: string
+  updated_at: string
 }
 
 export type SurfacePricing = {
   id: number
   name: string
-  area: string
-  measurement_type: string
+  area: string  // FK to areas.name
+  measurement_type: string  // FK to measurement_types.name
   laminate_20: number
   fenix_20: number
   porcelain_20: number
@@ -57,15 +62,29 @@ export type SurfacePricing = {
   stainless_20: number
   glass_matte_20: number
   granite_20: number
+  created_at: string
+  updated_at: string
 }
 
 export type AddonPricing = {
   id: number
   name: string
   type: string
-  area: string
-  measurement_type: string
+  area: string  // FK to areas.name
+  measurement_type: string  // FK to measurement_types.name
   price: number
+  created_at: string
+  updated_at: string
+}
+
+export type AddonDependency = {
+  id: number
+  parent_addon_id: number  // FK to addon_pricing.id
+  dependent_addon_id: number  // FK to addon_pricing.id
+  quantity_ratio: number
+  calculation_rule: string
+  created_at: string
+  updated_at: string
 }
 
 export type Quote = {
@@ -81,6 +100,17 @@ export type Quote = {
 }
 
 // Fetch functions for reference data
+export async function getRooms() {
+  const { data, error } = await supabase.from("room").select("*")
+
+  if (error) {
+    console.error("Error fetching rooms:", error)
+    return []
+  }
+
+  return data as Room[]
+}
+
 export async function getAreas() {
   const { data, error } = await supabase.from("areas").select("*")
 
@@ -116,66 +146,72 @@ export async function getHandleTypes() {
 
 // Fetch functions for pricing data
 export async function getCabinetPricing() {
-  console.log("Fetching cabinet pricing data")
-  const { data, error } = await supabase.from("view_cabinet_pricing").select("*")
+  console.log("Fetching cabinet pricing data");
+  
+  const { data, error } = await supabase
+    .from("cabinet_pricing")
+    .select("*")
+    .order('created_at', { ascending: false });
 
   if (error) {
-    console.error("Error fetching cabinet pricing:", error)
-    return []
+    console.error("Error fetching cabinet pricing:", error);
+    return [];
   }
 
-  console.log("Received cabinet pricing data:", data?.length, "items")
-  
-  if (!data || data.length === 0) {
-    console.log("No cabinet pricing data returned from Supabase")
-    
-    // Provide a fallback for testing if no data is returned
-    return [
-      {
-        id: 1,
-        name: "BASE",
-        handle_type: "Handles",
-        area: "KITCHEN",
-        measurement_type: "LINEAR FOOT",
-        price_level_0: 100,
-        price_level_1: 120,
-        price_level_2: 140,
-        price_level_3: 160,
-        price_level_4: 180,
-        price_level_5: 200,
-        price_level_6: 220,
-        price_level_7: 240,
-        price_level_8: 260,
-        price_level_9: 280,
-        price_level_10: 300,
-        str_addon: 50
-      }
-    ]
-  }
-
-  return data as CabinetPricing[]
+  console.log("Received cabinet pricing data:", data?.length, "items");
+  return data as CabinetPricing[];
 }
 
 export async function getSurfacePricing() {
-  const { data, error } = await supabase.from("view_surface_pricing").select("*")
+  console.log("Fetching surface pricing data");
+  
+  const { data, error } = await supabase
+    .from("surface_pricing")
+    .select("*")
+    .order('created_at', { ascending: false });
 
   if (error) {
-    console.error("Error fetching surface pricing:", error)
-    return []
+    console.error("Error fetching surface pricing:", error);
+    return [];
   }
 
-  return data as SurfacePricing[]
+  console.log("Received surface pricing data:", data?.length, "items");
+  return data as SurfacePricing[];
 }
 
 export async function getAddonPricing() {
-  const { data, error } = await supabase.from("view_addon_pricing").select("*")
+  console.log("Fetching addon pricing data");
+  
+  const { data, error } = await supabase
+    .from("addon_pricing")
+    .select("*")
+    .order('created_at', { ascending: false });
 
   if (error) {
-    console.error("Error fetching addon pricing:", error)
-    return []
+    console.error("Error fetching addon pricing:", error);
+    return [];
   }
 
-  return data as AddonPricing[]
+  console.log("Raw addon pricing data from Supabase:", data);
+  console.log("Received addon pricing data:", data?.length, "items");
+  return data as AddonPricing[];
+}
+
+export async function getAddonDependencies() {
+  console.log("Fetching addon dependencies data");
+  
+  const { data, error } = await supabase
+    .from("addon_dependencies")
+    .select("*")
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error("Error fetching addon dependencies:", error);
+    return [];
+  }
+
+  console.log("Received addon dependencies data:", data?.length, "items");
+  return data as AddonDependency[];
 }
 
 export async function saveQuote(quote: Omit<Quote, "id" | "created_at" | "updated_at">) {

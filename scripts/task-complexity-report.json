@@ -1,0 +1,91 @@
+{
+  "meta": {
+    "generatedAt": "2025-04-12T00:33:01.877Z",
+    "tasksAnalyzed": 10,
+    "thresholdScore": 5,
+    "projectName": "Your Project Name",
+    "usedResearch": false
+  },
+  "complexityAnalysis": [
+    {
+      "taskId": 1,
+      "taskTitle": "Setup Project Repository and Core Structure",
+      "complexityScore": 5,
+      "recommendedSubtasks": 5,
+      "expansionPrompt": "Break down the Next.js project setup into specific subtasks covering repository initialization, folder structure creation, dependency installation, code quality configuration, and responsive layout framework setup.",
+      "reasoning": "This task involves standard project setup procedures but requires careful consideration of the folder structure and configuration to support the application's requirements. The complexity is moderate as it involves multiple setup steps that are foundational for the project."
+    },
+    {
+      "taskId": 2,
+      "taskTitle": "Implement Data Models and Pricing Engine",
+      "complexityScore": 8,
+      "recommendedSubtasks": 6,
+      "expansionPrompt": "Divide the pricing engine implementation into subtasks covering JSON schema definition, core calculation functions, pricing matrices creation, markup calculations, dependency handling, and unit testing.",
+      "reasoning": "This task has high complexity as it involves creating the core business logic with multiple calculation components, pricing matrices, and interdependent functions. The pricing engine must handle various scenarios and calculations accurately, requiring careful design and implementation."
+    },
+    {
+      "taskId": 3,
+      "taskTitle": "Develop Kitchen Configuration UI Components",
+      "complexityScore": 6,
+      "recommendedSubtasks": 5,
+      "expansionPrompt": "Break down the kitchen configuration UI development into subtasks for handle type selection component, cabinet quantity input component, price level selection component, room name selection component, and real-time validation implementation.",
+      "reasoning": "This task involves creating multiple form components with validation and real-time updates. The complexity is moderate to high as it requires integrating with the pricing engine and ensuring a professional UI that updates dynamically."
+    },
+    {
+      "taskId": 4,
+      "taskTitle": "Implement Surface Material Selection Components",
+      "complexityScore": 6,
+      "recommendedSubtasks": 4,
+      "expansionPrompt": "Divide the surface material selection implementation into subtasks for countertop material selection component, backsplash material selection component, surface area specification inputs, and material-specific pricing integration.",
+      "reasoning": "This task requires creating selection components for different materials with specific pricing calculations. The complexity is moderate as it involves multiple material options and integration with the pricing engine."
+    },
+    {
+      "taskId": 5,
+      "taskTitle": "Develop Kitchen Add-ons Components",
+      "complexityScore": 7,
+      "recommendedSubtasks": 5,
+      "expansionPrompt": "Break down the kitchen add-ons implementation into subtasks for lighting and profiles components, fixture components, auto-calculation features, toggle controls, and pricing engine integration.",
+      "reasoning": "This task involves creating multiple add-on components with different measurement types and auto-calculation features. The complexity is higher due to the variety of add-ons and their specific calculation requirements."
+    },
+    {
+      "taskId": 6,
+      "taskTitle": "Implement Island Configuration Components",
+      "complexityScore": 7,
+      "recommendedSubtasks": 5,
+      "expansionPrompt": "Divide the island configuration implementation into subtasks for island toggle functionality, island-specific cabinet options, island surface options, waterfall edge components, and island-specific add-ons integration.",
+      "reasoning": "This task requires implementing a conditional set of components that depend on whether the island feature is enabled. The complexity is higher due to the conditional nature and the need to integrate with multiple other components."
+    },
+    {
+      "taskId": 7,
+      "taskTitle": "Develop Tab-based Navigation and Layout",
+      "complexityScore": 6,
+      "recommendedSubtasks": 4,
+      "expansionPrompt": "Break down the tab navigation implementation into subtasks for tab component creation, state persistence between tabs, responsive design implementation, and validation/progress indicators.",
+      "reasoning": "This task involves creating a navigation system that maintains state across different sections of the application. The complexity is moderate as it requires handling state persistence, validation, and responsive design."
+    },
+    {
+      "taskId": 8,
+      "taskTitle": "Create Real-time Pricing Display",
+      "complexityScore": 7,
+      "recommendedSubtasks": 4,
+      "expansionPrompt": "Divide the real-time pricing display implementation into subtasks for pricing summary component, real-time update mechanism, visual feedback for changes, and responsive display across different devices.",
+      "reasoning": "This task requires creating a dynamic display that updates in real-time based on user inputs across the application. The complexity is higher due to the need for real-time calculations and visual feedback."
+    },
+    {
+      "taskId": 9,
+      "taskTitle": "Implement Detailed Estimate Reporting",
+      "complexityScore": 7,
+      "recommendedSubtasks": 5,
+      "expansionPrompt": "Break down the estimate reporting implementation into subtasks for itemized component list generation, pricing calculation display, print-friendly formatting, export functionality, and conditional display options.",
+      "reasoning": "This task involves creating a comprehensive report with detailed breakdowns of all components and pricing. The complexity is higher due to the need for formatting, printing options, and conditional display logic."
+    },
+    {
+      "taskId": 10,
+      "taskTitle": "Implement Local Storage and Final Integration",
+      "complexityScore": 8,
+      "recommendedSubtasks": 6,
+      "expansionPrompt": "Divide the local storage and integration implementation into subtasks for local storage save/retrieve functionality, estimate management UI, export/import features, integration testing, performance optimization, and final error handling.",
+      "reasoning": "This task involves implementing persistence features and performing comprehensive integration testing. The complexity is high as it requires ensuring all components work together seamlessly, handling edge cases, and optimizing performance."
+    }
+  ]
+}

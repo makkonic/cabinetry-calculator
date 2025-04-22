@@ -11,6 +11,8 @@ import { Slider } from "@/components/ui/slider"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 interface SurfaceSectionProps {
   surface: SurfaceConfig
@@ -32,7 +34,11 @@ export function SurfaceSection({ surface, onChange, pricingData }: SurfaceSectio
   }
 
   useEffect(() => {
-    setPrice(calculateSurfacePrice(surface, pricingData))
+    // Calculate the current price
+    const calculatedPrice = calculateSurfacePrice(surface, pricingData);
+    
+    // Update price state only if it changed (without adding price to dependencies)
+    setPrice(calculatedPrice);
   }, [surface, pricingData])
 
   const handleSquareFeetChange = (value: number[]) => {
@@ -70,20 +76,18 @@ export function SurfaceSection({ surface, onChange, pricingData }: SurfaceSectio
         <div className="space-y-6">
           <div>
             <Label className="mb-2 block">Material</Label>
-            <RadioGroup
-              value={surface.material}
-              onValueChange={handleMaterialChange}
-              className="grid grid-cols-2 md:grid-cols-4 gap-2"
-            >
-              {materials.map((material) => (
-                <div key={material} className="flex items-center space-x-2">
-                  <RadioGroupItem value={material} id={`${surface.name}-${material}`} />
-                  <Label htmlFor={`${surface.name}-${material}`}>
+            <Select value={surface.material} onValueChange={handleMaterialChange}>
+              <SelectTrigger id={`${surface.name}-material`}>
+                <SelectValue placeholder="Select material" />
+              </SelectTrigger>
+              <SelectContent>
+                {materials.map((material) => (
+                  <SelectItem key={material} value={material}>
                     {materialLabels[material]}
-                  </Label>
-                </div>
-              ))}
-            </RadioGroup>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-4">

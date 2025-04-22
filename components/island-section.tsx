@@ -3,7 +3,7 @@
 import type React from "react"
 import { useState, useEffect } from "react"
 import type { IslandConfig, SurfaceConfig, AddonConfig } from "@/lib/calculator"
-import type { CabinetPricing, SurfacePricing, AddonPricing, HandleType } from "@/lib/supabase"
+import type { CabinetPricing, SurfacePricing, AddonPricing, HandleType, AddonDependency } from "@/lib/supabase"
 import { calculateCabinetPrice, calculateSurfacePrice, calculateAddonPrice } from "@/lib/calculator"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Slider } from "@/components/ui/slider"
@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 
 interface IslandSectionProps {
   island: IslandConfig
@@ -20,6 +21,7 @@ interface IslandSectionProps {
   surfacePricing: SurfacePricing[]
   addonPricing: AddonPricing[]
   handleTypes?: HandleType[]
+  addonDependencies?: AddonDependency[]
 }
 
 export function IslandSection({
@@ -29,6 +31,7 @@ export function IslandSection({
   surfacePricing,
   addonPricing,
   handleTypes,
+  addonDependencies = [],
 }: IslandSectionProps) {
   const [cabinetPrice, setCabinetPrice] = useState(0)
   const [counterTopPrice, setCounterTopPrice] = useState(0)
@@ -37,6 +40,16 @@ export function IslandSection({
   const [aluminumToeKicksPrice, setAluminumToeKicksPrice] = useState(0)
   const [integratedSinkPrice, setIntegratedSinkPrice] = useState(0)
   const [totalPrice, setTotalPrice] = useState(0)
+
+  // Log when the component receives pricing data
+  useEffect(() => {
+    console.log("IslandSection received pricing data:", {
+      cabinetPricing: cabinetPricing.length,
+      surfacePricing: surfacePricing.length,
+      addonPricing: addonPricing.length,
+      addonDependencies: addonDependencies.length,
+    });
+  }, [cabinetPricing, surfacePricing, addonPricing, addonDependencies]);
 
   // Materials for surface selection
   const materials = ["laminate", "fenix", "porcelain", "quartz", "stainless", "glass_matte", "granite"]
@@ -53,58 +66,64 @@ export function IslandSection({
   // Calculate prices whenever island config changes
   useEffect(() => {
     if (!island.enabled) {
-      setTotalPrice(0)
-      return
+      // Reset all price states at once when disabled
+      setCabinetPrice(0);
+      setCounterTopPrice(0);
+      setWaterfallPrice(0);
+      setAluminumProfilesPrice(0);
+      setAluminumToeKicksPrice(0);
+      setIntegratedSinkPrice(0);
+      setTotalPrice(0);
+      return;
     }
 
-    // Calculate cabinet price
+    // Calculate all prices
     const islandCabinet = {
       name: "Island Cabinet",
-      area: "ISLAND",
+      area: "kitchen-island",
+      room_name: island.room_name,
       measurement_type: "LINEAR FOOT",
       handle_type: island.handle_type,
       linearFeet: island.counterTop.squareFeet / 2, // Approximate linear feet from square feet
       priceLevel: island.priceLevel,
       strEnabled: false,
-    }
-    const cabPrice = calculateCabinetPrice(islandCabinet, cabinetPricing)
-    setCabinetPrice(cabPrice)
-
-    // Calculate counter top price
-    const ctopPrice = calculateSurfacePrice(island.counterTop, surfacePricing)
-    setCounterTopPrice(ctopPrice)
-
-    // Calculate waterfall price
-    let wfPrice = 0
+    };
+    const cabPrice = calculateCabinetPrice(islandCabinet, cabinetPricing, islandCabinet.priceLevel);
+    
+    const ctopPrice = calculateSurfacePrice(island.counterTop, surfacePricing);
+    
+    let wfPrice = 0;
     if (island.waterfall && island.waterfall.squareFeet > 0) {
-      wfPrice = calculateSurfacePrice(island.waterfall, surfacePricing)
+      wfPrice = calculateSurfacePrice(island.waterfall, surfacePricing);
     }
-    setWaterfallPrice(wfPrice)
-
-    // Calculate aluminum profiles price
-    let alProfilesPrice = 0
+    
+    let alProfilesPrice = 0;
     if (island.aluminumProfiles && island.aluminumProfiles.linearFeet) {
-      alProfilesPrice = calculateAddonPrice(island.aluminumProfiles, addonPricing)
+      alProfilesPrice = calculateAddonPrice(island.aluminumProfiles, addonPricing, addonDependencies);
     }
-    setAluminumProfilesPrice(alProfilesPrice)
-
-    // Calculate aluminum toe kicks price
-    let alToeKicksPrice = 0
+    
+    let alToeKicksPrice = 0;
     if (island.aluminumToeKicks && island.aluminumToeKicks.linearFeet) {
-      alToeKicksPrice = calculateAddonPrice(island.aluminumToeKicks, addonPricing)
+      alToeKicksPrice = calculateAddonPrice(island.aluminumToeKicks, addonPricing, addonDependencies);
     }
-    setAluminumToeKicksPrice(alToeKicksPrice)
-
-    // Calculate integrated sink price
-    let intSinkPrice = 0
-    if (island.integratedSink && island.integratedSink.quantity) {
-      intSinkPrice = calculateAddonPrice(island.integratedSink, addonPricing)
+    
+    let intSinkPrice = 0;
+    if (island.integratedSink && island.integratedSink.quantity > 0) {
+      intSinkPrice = calculateAddonPrice(island.integratedSink, addonPricing, addonDependencies);
     }
-    setIntegratedSinkPrice(intSinkPrice)
-
+    
     // Calculate total price
-    setTotalPrice(cabPrice + ctopPrice + wfPrice + alProfilesPrice + alToeKicksPrice + intSinkPrice)
-  }, [island, cabinetPricing, surfacePricing, addonPricing])
+    const total = cabPrice + ctopPrice + wfPrice + alProfilesPrice + alToeKicksPrice + intSinkPrice;
+    
+    // Batch update all state values
+    setCabinetPrice(cabPrice);
+    setCounterTopPrice(ctopPrice);
+    setWaterfallPrice(wfPrice);
+    setAluminumProfilesPrice(alProfilesPrice);
+    setAluminumToeKicksPrice(alToeKicksPrice);
+    setIntegratedSinkPrice(intSinkPrice);
+    setTotalPrice(total);
+  }, [island, cabinetPricing, surfacePricing, addonPricing, addonDependencies]);
 
   const handleEnabledChange = (checked: boolean) => {
     onChange({
@@ -195,10 +214,10 @@ export function IslandSection({
       waterfall: checked
         ? {
             name: "WATERFALL",
-            area: "ISLAND",
+            area: "kitchen-island",
             measurement_type: "SQUARE FOOT",
             material: island.counterTop.material,
-            squareFeet: 0,
+            squareFeet: 1,
           }
         : undefined,
     })
@@ -232,10 +251,10 @@ export function IslandSection({
       ...island,
       aluminumProfiles: checked
         ? {
-            name: "ALUMINUM PROFILES",
-            area: "ISLAND",
-            measurement_type: "LINEAR FOOT",
-            linearFeet: 0,
+            name: "Aluminum Profiles",
+            area: "kitchen-island",
+            measurement_type: "Linear FT",
+            linearFeet: 1,
           }
         : undefined,
     })
@@ -269,10 +288,24 @@ export function IslandSection({
       ...island,
       aluminumToeKicks: checked
         ? {
-            name: "ALUMINUM TOE KICKS",
-            area: "ISLAND",
-            measurement_type: "LINEAR FOOT",
-            linearFeet: 0,
+            name: "Aluminum Toe Kicks",
+            area: "kitchen-island",
+            measurement_type: "Linear FT",
+            linearFeet: 1,
+          }
+        : undefined,
+    })
+  }
+
+  const handleIntegratedSinkEnabledChange = (checked: boolean) => {
+    onChange({
+      ...island,
+      integratedSink: checked
+        ? {
+            name: "Integrated Sink",
+            area: "kitchen-island",
+            measurement_type: "Per Piece",
+            quantity: 1,
           }
         : undefined,
     })
@@ -286,20 +319,6 @@ export function IslandSection({
         ...island.integratedSink!,
         quantity,
       },
-    })
-  }
-
-  const handleIntegratedSinkEnabledChange = (checked: boolean) => {
-    onChange({
-      ...island,
-      integratedSink: checked
-        ? {
-            name: "INTEGRATED SINK",
-            area: "ISLAND",
-            measurement_type: "PER PIECE",
-            quantity: 1,
-          }
-        : undefined,
     })
   }
 
@@ -322,11 +341,13 @@ export function IslandSection({
                     <SelectValue placeholder="Select handle type" />
                   </SelectTrigger>
                   <SelectContent>
-                    {handleTypes?.map((handleType) => (
-                      <SelectItem key={handleType.id} value={handleType.name}>
-                        {handleType.name}
-                      </SelectItem>
-                    ))}
+                    {handleTypes
+                      ?.filter(type => type.name.toLowerCase() !== "none")
+                      .map((handleType) => (
+                        <SelectItem key={handleType.name} value={handleType.name}>
+                          {handleType.name}
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -352,20 +373,18 @@ export function IslandSection({
               <div className="space-y-4">
                 <div>
                   <Label className="mb-2 block">Material</Label>
-                  <RadioGroup
-                    value={island.counterTop.material}
-                    onValueChange={handleCounterTopMaterialChange}
-                    className="grid grid-cols-2 md:grid-cols-4 gap-2"
-                  >
-                    {materials.map((material) => (
-                      <div key={material} className="flex items-center space-x-2">
-                        <RadioGroupItem value={material} id={`island-countertop-${material}`} />
-                        <Label htmlFor={`island-countertop-${material}`}>
+                  <Select value={island.counterTop.material} onValueChange={handleCounterTopMaterialChange}>
+                    <SelectTrigger id="island-countertop-material">
+                      <SelectValue placeholder="Select material" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {materials.map((material) => (
+                        <SelectItem key={material} value={material}>
                           {materialLabels[material]}
-                        </Label>
-                      </div>
-                    ))}
-                  </RadioGroup>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div className="space-y-4">
