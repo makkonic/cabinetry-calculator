@@ -9,10 +9,10 @@ import { Download, Printer, CreditCard, ChevronDown } from "lucide-react"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import NumberFlow, { NumberFlowGroup } from '@number-flow/react';
 import dynamic from 'next/dynamic';
-
-// Constants for calculations
-const BUFFER_RATE = 0.05; // 5% buffer
-const TARIFF_RATE = 0.10; // 10% tariff
+import { useSettings } from "@/contexts/settings-context"
+import html2pdf from "html2pdf.js"
+import { jsPDF } from "jspdf"
+import { SettingsPanel } from "./settings-panel"
 
 // Utility functions
 const formatCurrency = (value: number): string => {
@@ -84,6 +84,7 @@ export function PriceSummary({ pricingSummary }: PriceSummaryProps) {
   const [isPrinting, setIsPrinting] = useState<boolean>(false);
   const printRef = useRef<HTMLDivElement>(null);
   const isMounted = useRef<boolean>(true);
+  const { contingencyRate, tariffRate } = useSettings();
 
   // Use effect to handle component unmounting
   useEffect(() => {
@@ -125,8 +126,8 @@ export function PriceSummary({ pricingSummary }: PriceSummaryProps) {
     
     // Calculate final totals
     organized.subtotal = subtotal;
-    organized.buffer = subtotal * BUFFER_RATE;
-    organized.tariff = (subtotal + organized.buffer) * TARIFF_RATE;
+    organized.buffer = subtotal * contingencyRate;
+    organized.tariff = (subtotal + organized.buffer) * tariffRate;
     organized.total = subtotal + organized.buffer + organized.tariff;
     
     return organized;
@@ -252,7 +253,7 @@ export function PriceSummary({ pricingSummary }: PriceSummaryProps) {
               />
             </div>
             <div className="flex justify-between mb-2 text-sm font-medium">
-              <span>Contingency ({BUFFER_RATE * 100}%):</span>
+              <span>Contingency ({(contingencyRate * 100).toFixed(1)}%):</span>
               <NumberFlow 
                 value={organizedItems.buffer * multiplier} 
                 format={{ 
@@ -265,7 +266,7 @@ export function PriceSummary({ pricingSummary }: PriceSummaryProps) {
               />
             </div>
             <div className="flex justify-between mb-2 text-sm font-medium">
-              <span>Tariff ({TARIFF_RATE * 100}%):</span>
+              <span>Tariff ({(tariffRate * 100).toFixed(1)}%):</span>
               <NumberFlow 
                 value={organizedItems.tariff * multiplier} 
                 format={{ 
@@ -375,40 +376,40 @@ export function PriceSummary({ pricingSummary }: PriceSummaryProps) {
       </CardHeader>
       <CardContent>
         <div ref={printRef} className={isPrinting ? "print-friendly" : ""}>
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid grid-cols-4 mb-4">
-              <TabsTrigger value="dealer">Dealer</TabsTrigger>
-              <TabsTrigger value="trade">Trade</TabsTrigger>
-              <TabsTrigger value="retail1">Retail 1</TabsTrigger>
-              <TabsTrigger value="retail2">Retail 2</TabsTrigger>
-            </TabsList>
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="grid grid-cols-4 mb-4">
+            <TabsTrigger value="dealer">Dealer</TabsTrigger>
+            <TabsTrigger value="trade">Trade</TabsTrigger>
+            <TabsTrigger value="retail1">Retail 1</TabsTrigger>
+            <TabsTrigger value="retail2">Retail 2</TabsTrigger>
+          </TabsList>
 
-            <TabsContent value="dealer" className="space-y-4">
+          <TabsContent value="dealer" className="space-y-4">
               <div className="tab-content">
                 <OrganizedItemList organizedItems={summaryItems} activeTab="dealer" isPrinting={isPrinting} />
-              </div>
-            </TabsContent>
+            </div>
+          </TabsContent>
 
-            <TabsContent value="trade" className="space-y-4">
+          <TabsContent value="trade" className="space-y-4">
               <div className="tab-content">
                 <OrganizedItemList organizedItems={summaryItems} activeTab="trade" isPrinting={isPrinting} />
-              </div>
-            </TabsContent>
+            </div>
+          </TabsContent>
 
-            <TabsContent value="retail1" className="space-y-4">
+          <TabsContent value="retail1" className="space-y-4">
               <div className="tab-content">
                 <OrganizedItemList organizedItems={summaryItems} activeTab="retail1" isPrinting={isPrinting} />
-              </div>
-            </TabsContent>
+            </div>
+          </TabsContent>
 
-            <TabsContent value="retail2" className="space-y-4">
+          <TabsContent value="retail2" className="space-y-4">
               <div className="tab-content">
                 <OrganizedItemList organizedItems={summaryItems} activeTab="retail2" isPrinting={isPrinting} />
-              </div>
-            </TabsContent>
-          </Tabs>
+            </div>
+          </TabsContent>
+        </Tabs>
         </div>
-        
+
         <div className="flex space-x-2 mt-6">
           <Button onClick={handlePrint} variant="outline" className="flex-1">
             <Printer className="w-4 h-4 mr-2" />

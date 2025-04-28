@@ -7,6 +7,8 @@ import { AddonSection } from "./addon-section"
 import { IslandSection } from "./island-section"
 import { PriceSummary } from "./price-summary"
 import { CustomerForm } from "./customer-form"
+import { useSettings } from "@/contexts/settings-context"
+import { SettingsPanel } from "./settings-panel"
 import {
   getCabinetPricing,
   getSurfacePricing,
@@ -61,8 +63,8 @@ export function Calculator() {
   const [cabinets, setCabinets] = useState<CabinetConfig[]>([])
 
   const [surfaces, setSurfaces] = useState<SurfaceConfig[]>([
-    { name: "Countertop", area: "kitchen", measurement_type: "Per SQFT", material: "laminate", squareFeet: 1 },
-    { name: "Backsplash", area: "kitchen", measurement_type: "Per SQFT", material: "laminate", squareFeet: 1 },
+    { name: "Countertop", area: "kitchen-surfaces", measurement_type: "Per SQFT", material: "laminate", squareFeet: 1 },
+    { name: "Backsplash", area: "kitchen-surfaces", measurement_type: "Per SQFT", material: "laminate", squareFeet: 1 },
   ])
 
   const [addons, setAddons] = useState<AddonConfig[]>([
@@ -112,6 +114,8 @@ export function Calculator() {
   const [activeTab, setActiveTab] = useState("kitchen")
   const [activeKitchenTab, setActiveKitchenTab] = useState("cabinets")
   const [showCustomerForm, setShowCustomerForm] = useState(false)
+
+  const { contingencyRate, tariffRate } = useSettings();
 
   // Generate cabinet configs from cabinet pricing data
   const generateCabinetConfigs = (cabinetPricingData: CabinetPricing[], selectedHandleType: string) => {
@@ -179,14 +183,24 @@ export function Calculator() {
       return []
     }
 
+    // Filter for kitchen surfaces (looking for both plural and singular forms)
+    const kitchenSurfaces = surfacePricingData.filter(surface => 
+      surface.area === "kitchen-surfaces" || surface.area === "kitchen-surface" || surface.area === "kitchen"
+    );
+    console.log("Kitchen Surfaces:", kitchenSurfaces);
+
+    // Process all surfaces
     surfacePricingData.forEach(surface => {
       const key = `${surface.name}-${surface.area}-${surface.measurement_type}`
       if (!uniqueSurfaces.has(key)) {
         uniqueSurfaces.add(key)
         
+        // Standardize the area name to kitchen-surfaces for consistency
+        const standardizedArea = surface.area === "kitchen-surface" ? "kitchen-surfaces" : surface.area;
+        
         const newSurfaceConfig: SurfaceConfig = {
           name: surface.name,
-          area: surface.area,
+          area: standardizedArea,
           measurement_type: surface.measurement_type,
           material: "laminate", // Default material
           squareFeet: 1 // Default value
@@ -195,6 +209,39 @@ export function Calculator() {
         surfaceConfigs.push(newSurfaceConfig)
       }
     })
+
+    // If no kitchen surfaces were found using any naming convention, 
+    // add default surfaces
+    if (!surfaceConfigs.some(s => 
+        s.area === "kitchen-surfaces" || 
+        s.area === "kitchen-surface" || 
+        s.area === "kitchen")) {
+      // Add default surfaces if none exist in the database with the correct area
+      const defaultSurfaces = [
+        { 
+          name: "Countertop", 
+          area: "kitchen-surfaces", 
+          measurement_type: "Per SQFT", 
+          material: "laminate" as const, 
+          squareFeet: 1 
+        },
+        { 
+          name: "Backsplash", 
+          area: "kitchen-surfaces", 
+          measurement_type: "Per SQFT", 
+          material: "laminate" as const, 
+          squareFeet: 1 
+        }
+      ];
+      
+      defaultSurfaces.forEach(surface => {
+        const key = `${surface.name}-${surface.area}-${surface.measurement_type}`;
+        if (!uniqueSurfaces.has(key)) {
+          uniqueSurfaces.add(key);
+          surfaceConfigs.push(surface);
+        }
+      });
+    }
 
     console.log("Generated Surface Configs:", surfaceConfigs)
     return surfaceConfigs
@@ -305,6 +352,29 @@ export function Calculator() {
     loadPricingData()
   }, [loadPricingData])
 
+  // Migrate old area names to new format if needed
+  useEffect(() => {
+    if (!loading && surfaces.length > 0) {
+      // Check if we have any surfaces with the old area name "kitchen"
+      const hasSurfacesWithOldAreaName = surfaces.some(s => s.area === "kitchen");
+      
+      if (hasSurfacesWithOldAreaName) {
+        console.log("Migrating surfaces with area 'kitchen' to 'kitchen-surfaces'");
+        
+        // Update surfaces with the old area name
+        setSurfaces(prev => prev.map(surface => {
+          if (surface.area === "kitchen") {
+            return {
+              ...surface,
+              area: "kitchen-surfaces"
+            };
+          }
+          return surface;
+        }));
+      }
+    }
+  }, [loading, surfaces]);
+
   // Ensure pricing data is loaded
   useEffect(() => {
     if (!loading && (cabinetPricing.length === 0 || surfacePricing.length === 0 || addonPricing.length === 0)) {
@@ -376,7 +446,15 @@ export function Calculator() {
     island,
   }
 
-  const pricingSummary = calculateTotalPrice(config, cabinetPricing, surfacePricing, addonPricing, addonDependencies)
+  const pricingSummary = calculateTotalPrice(
+    config, 
+    cabinetPricing, 
+    surfacePricing, 
+    addonPricing, 
+    addonDependencies,
+    contingencyRate,
+    tariffRate
+  )
 
   const handleGlobalPriceLevelChange = (value: string) => {
     const newPriceLevel = parseInt(value);
@@ -438,6 +516,10 @@ export function Calculator() {
       <div className="lg:col-span-2">
         <Card className="mb-6">
           <CardContent className="pt-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold">Kitchen Cabinet Calculator</h2>
+              <SettingsPanel />
+            </div>
             <Tabs value={activeTab} onValueChange={setActiveTab}>
               <TabsList className="grid grid-cols-1 mb-6">
                 <TabsTrigger value="kitchen">Kitchen</TabsTrigger>
@@ -535,11 +617,11 @@ export function Calculator() {
 
                   <TabsContent value="surfaces" className="space-y-6">
                     {surfaces
-                      .filter(surface => surface.area === "kitchen")
+                      .filter(surface => surface.area === "kitchen-surfaces" || surface.area === "kitchen")
                       .map((surface, index) => {
                         const originalIndex = surfaces.findIndex(s => 
                           s.name === surface.name && 
-                          s.area === surface.area && 
+                          (s.area === surface.area) && 
                           s.measurement_type === surface.measurement_type
                         );
                         return (
@@ -554,7 +636,7 @@ export function Calculator() {
                     
                     <h2 className="text-lg font-semibold mb-3 pt-4">Surface Add-ons</h2>
                     {addons
-                      .filter((addon) => addon.name !== "Transformer" && addon.area.toLowerCase() === "kitchen-surface")
+                      .filter((addon) => addon.name !== "Transformer" && (addon.area.toLowerCase() === "kitchen-surfaces" || addon.area.toLowerCase() === "kitchen-surface"))
                       .map((addon, index) => {
                         const addonIndex = addons.findIndex(a => a.name === addon.name && a.area === addon.area);
                         return (

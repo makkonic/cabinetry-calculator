@@ -97,12 +97,13 @@ interface CardControlRowProps extends React.HTMLAttributes<HTMLDivElement> {
   sliderSection?: React.ReactNode
   dropdownSection?: React.ReactNode
   numberSection?: React.ReactNode
+  inputSection?: React.ReactNode
 }
 
 const CardControlRow = React.forwardRef<
   HTMLDivElement,
   CardControlRowProps
->(({ className, sliderSection, dropdownSection, numberSection, ...props }, ref) => (
+>(({ className, sliderSection, dropdownSection, numberSection, inputSection, ...props }, ref) => (
   <div
     ref={ref}
     className={cn(
@@ -112,13 +113,18 @@ const CardControlRow = React.forwardRef<
     {...props}
   >
     {sliderSection && (
-      <div className="col-span-6">{sliderSection}</div>
+      <div className={cn("col-span-6", !inputSection && !numberSection ? "col-span-8" : "")}>
+        {sliderSection}
+      </div>
     )}
     {dropdownSection && (
       <div className="col-span-4">{dropdownSection}</div>
     )}
     {numberSection && (
       <div className="col-span-2">{numberSection}</div>
+    )}
+    {inputSection && (
+      <div className="col-span-3">{inputSection}</div>
     )}
   </div>
 ))

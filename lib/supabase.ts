@@ -176,6 +176,10 @@ export async function getSurfacePricing() {
   }
 
   console.log("Received surface pricing data:", data?.length, "items");
+  // Log specific areas to help with debugging
+  const areas = [...new Set(data?.map(item => item.area))];
+  console.log("Surface areas found:", areas);
+  
   return data as SurfacePricing[];
 }
 

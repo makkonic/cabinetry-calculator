@@ -145,16 +145,25 @@ export function IslandSection({
 
   // Initialize countertop with proper values when component mounts
   useEffect(() => {
-    // Make sure the counter top has material and square feet values
+    // Find a matching entry in surfacePricing for counter top in kitchen-island
+    const counterTopPricing = surfacePricing.filter(p => 
+      p.area === "kitchen-island" && 
+      (p.name.toLowerCase().includes("counter") || p.name.toLowerCase().includes("countertop"))
+    );
+    
+    // If we don't have a properly configured counter top or it has invalid values
     if (!island.counterTop.material || !island.counterTop.squareFeet || island.counterTop.squareFeet <= 0) {
-      // Create a proper counter top with defaults
+      // Use the first matching counter top pricing entry if available
+      const matchingPricing = counterTopPricing.length > 0 ? counterTopPricing[0] : null;
+      
+      // Create a proper counter top with defaults or matching values
       const updatedIsland = {
         ...island,
         counterTop: {
           ...island.counterTop,
-          name: "Counter Top",
-          area: "kitchen-island",
-          measurement_type: "Per SQFT",
+          name: matchingPricing ? matchingPricing.name : "Counter Top",
+          area: matchingPricing ? matchingPricing.area : "kitchen-island",
+          measurement_type: matchingPricing ? matchingPricing.measurement_type : "Per SQFT",
           material: island.counterTop.material || "laminate", // Default to laminate if not set
           squareFeet: island.counterTop.squareFeet || 1 // Default to 1 sqft if not set
         }
@@ -168,7 +177,7 @@ export function IslandSection({
       setCounterTopLength(Math.sqrt(updatedIsland.counterTop.squareFeet));
       setCounterTopInitialized(true);
     }
-  }, []);
+  }, [surfacePricing]);
 
   // Calculate prices whenever relevant properties change
   useEffect(() => {
@@ -177,13 +186,6 @@ export function IslandSection({
       return;
     }
     
-    console.log("Calculating island prices with:", { 
-      island,
-      surfacePricing,
-      cabinetPricing,
-      islandCabinets
-    });
-
     // Calculate all prices from all island cabinets
     let totalCabinetPrice = 0;
     
@@ -192,15 +194,12 @@ export function IslandSection({
       islandCabinets.forEach(cabinet => {
         if ((cabinet.measurement_type === "Linear FT" || cabinet.measurement_type === "Per SQFT") && 
             (!cabinet.linearFeet || cabinet.linearFeet <= 0)) {
-          console.log(`Skipping island cabinet ${cabinet.name} - has zero or undefined measurements`);
           return;
         } else if (cabinet.measurement_type === "Per Piece" && (!cabinet.quantity || cabinet.quantity <= 0)) {
-          console.log(`Skipping island cabinet ${cabinet.name} - has zero or undefined measurements`);
           return;
         }
         
         const cabPrice = calculateCabinetPrice(cabinet, cabinetPricing, cabinet.priceLevel);
-        console.log(`Island Cabinet ${cabinet.name} calculated price: ${cabPrice}`);
         totalCabinetPrice += cabPrice;
       });
     }
@@ -209,35 +208,30 @@ export function IslandSection({
     let ctopPrice = 0;
     if (island.counterTop && island.counterTop.squareFeet > 0) {
       ctopPrice = calculateSurfacePrice(island.counterTop, surfacePricing);
-      console.log(`Island Counter Top price: ${ctopPrice} (${island.counterTop.squareFeet} sqft of ${island.counterTop.material})`);
     }
     
     // Calculate waterfall price
     let wfPrice = 0;
     if (island.waterfall && island.waterfall.squareFeet > 0) {
       wfPrice = calculateSurfacePrice(island.waterfall, surfacePricing);
-      console.log(`Island Waterfall price: ${wfPrice} (${island.waterfall.squareFeet} sqft of ${island.waterfall.material})`);
     }
     
     // Calculate aluminum profiles price
     let alProfilesPrice = 0;
     if (island.aluminumProfiles?.enabled && island.aluminumProfiles?.linearFeet) {
       alProfilesPrice = calculateAddonPrice(island.aluminumProfiles, addonPricing, addonDependencies);
-      console.log(`Island Aluminum Profiles price: ${alProfilesPrice}`);
     }
     
     // Calculate aluminum toe kicks price
     let alToeKicksPrice = 0;
     if (island.aluminumToeKicks?.enabled && island.aluminumToeKicks?.linearFeet) {
       alToeKicksPrice = calculateAddonPrice(island.aluminumToeKicks, addonPricing, addonDependencies);
-      console.log(`Island Aluminum Toe Kicks price: ${alToeKicksPrice}`);
     }
     
     // Calculate integrated sink price
     let intSinkPrice = 0;
     if (island.integratedSink && island.integratedSink.quantity && island.integratedSink.quantity > 0) {
       intSinkPrice = calculateAddonPrice(island.integratedSink, addonPricing, addonDependencies);
-      console.log(`Island Integrated Sink price: ${intSinkPrice}`);
     }
     
     // Update all prices in state
@@ -250,7 +244,6 @@ export function IslandSection({
     
     // Calculate total price for island
     const total = totalCabinetPrice + ctopPrice + wfPrice + alProfilesPrice + alToeKicksPrice + intSinkPrice;
-    console.log(`Total island price: ${total}`);
     setTotalPrice(total);
     
   }, [
@@ -323,11 +316,26 @@ export function IslandSection({
   }
 
   const handleCounterTopMaterialChange = (value: MaterialType) => {
+    // First, ensure we have the correct counter top config that matches pricing data
+    const counterTopPricing = surfacePricing.filter(p => 
+      p.area === "kitchen-island" && 
+      (p.name.toLowerCase().includes("counter") || p.name.toLowerCase().includes("countertop"))
+    );
+    
+    // Use the first matching counter top pricing entry if available
+    const matchingPricing = counterTopPricing.length > 0 ? counterTopPricing[0] : null;
+    
     // Update counter top material
     const updatedIsland = {
       ...island,
       counterTop: {
         ...island.counterTop,
+        // If we found a matching pricing entry, use its exact name, area, and measurement_type
+        ...(matchingPricing ? {
+          name: matchingPricing.name,
+          area: matchingPricing.area,
+          measurement_type: matchingPricing.measurement_type
+        } : {}),
         material: value,
       }
     };
@@ -353,16 +361,61 @@ export function IslandSection({
     })
   }
 
+  // Handler for slider component
+  const handleCounterTopSliderChange = (value: number[]) => {
+    const newArea = value[0];
+    const newDimension = Math.sqrt(newArea);
+    setCounterTopWidth(newDimension);
+    setCounterTopLength(newDimension);
+    
+    // Find matching pricing entry
+    const counterTopPricing = surfacePricing.filter(p => 
+      p.area === "kitchen-island" && 
+      (p.name.toLowerCase().includes("counter") || p.name.toLowerCase().includes("countertop"))
+    );
+    const matchingPricing = counterTopPricing.length > 0 ? counterTopPricing[0] : null;
+    
+    onChange({ 
+      ...island, 
+      counterTop: { 
+        ...island.counterTop, 
+        ...(matchingPricing ? {
+          name: matchingPricing.name,
+          area: matchingPricing.area,
+          measurement_type: matchingPricing.measurement_type
+        } : {}),
+        squareFeet: newArea 
+      } 
+    });
+  }
+
+  // Handler for direct square footage input
   const handleCounterTopAreaInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = Number.parseFloat(e.target.value)
     if (!isNaN(value) && value >= 0) {
-      onChange({
-        ...island,
-        counterTop: {
-          ...island.counterTop,
-          squareFeet: value,
-        },
-      })
+      const newDimension = Math.sqrt(value);
+      setCounterTopWidth(newDimension);
+      setCounterTopLength(newDimension);
+      
+      // Find matching pricing entry
+      const counterTopPricing = surfacePricing.filter(p => 
+        p.area === "kitchen-island" && 
+        (p.name.toLowerCase().includes("counter") || p.name.toLowerCase().includes("countertop"))
+      );
+      const matchingPricing = counterTopPricing.length > 0 ? counterTopPricing[0] : null;
+      
+      onChange({ 
+        ...island, 
+        counterTop: { 
+          ...island.counterTop, 
+          ...(matchingPricing ? {
+            name: matchingPricing.name,
+            area: matchingPricing.area,
+            measurement_type: matchingPricing.measurement_type
+          } : {}),
+          squareFeet: value 
+        } 
+      });
     }
   }
 
@@ -464,10 +517,23 @@ export function IslandSection({
       setCounterTopWidth(newWidth);
       // Calculate new square footage and update
       const newArea = newWidth * counterTopLength;
+      
+      // Find matching pricing entry
+      const counterTopPricing = surfacePricing.filter(p => 
+        p.area === "kitchen-island" && 
+        (p.name.toLowerCase().includes("counter") || p.name.toLowerCase().includes("countertop"))
+      );
+      const matchingPricing = counterTopPricing.length > 0 ? counterTopPricing[0] : null;
+      
       onChange({
         ...island,
         counterTop: {
           ...island.counterTop,
+          ...(matchingPricing ? {
+            name: matchingPricing.name,
+            area: matchingPricing.area,
+            measurement_type: matchingPricing.measurement_type
+          } : {}),
           squareFeet: newArea,
         },
       });
@@ -480,10 +546,23 @@ export function IslandSection({
       setCounterTopLength(newLength);
       // Calculate new square footage and update
       const newArea = counterTopWidth * newLength;
+      
+      // Find matching pricing entry
+      const counterTopPricing = surfacePricing.filter(p => 
+        p.area === "kitchen-island" && 
+        (p.name.toLowerCase().includes("counter") || p.name.toLowerCase().includes("countertop"))
+      );
+      const matchingPricing = counterTopPricing.length > 0 ? counterTopPricing[0] : null;
+      
       onChange({
         ...island,
         counterTop: {
           ...island.counterTop,
+          ...(matchingPricing ? {
+            name: matchingPricing.name,
+            area: matchingPricing.area,
+            measurement_type: matchingPricing.measurement_type
+          } : {}),
           squareFeet: newArea,
         },
       });
@@ -651,13 +730,7 @@ export function IslandSection({
                     min={0}
                     max={100}
                     step={0.1}
-                    onValueChange={(value) => {
-                      const newArea = value[0];
-                      const newDimension = Math.sqrt(newArea);
-                      setCounterTopWidth(newDimension);
-                      setCounterTopLength(newDimension);
-                      onChange({ ...island, counterTop: { ...island.counterTop, squareFeet: newArea } });
-                    }}
+                    onValueChange={handleCounterTopSliderChange}
                     unit="sqft"
                   />
                 </div>
@@ -669,15 +742,7 @@ export function IslandSection({
                     id="counter-top-sqft-input"
                     type="number"
                     value={island.counterTop.squareFeet}
-                    onChange={(e) => {
-                      const value = Number.parseFloat(e.target.value);
-                      if (!isNaN(value) && value >= 0) {
-                        const newDimension = Math.sqrt(value);
-                        setCounterTopWidth(newDimension);
-                        setCounterTopLength(newDimension);
-                        onChange({ ...island, counterTop: { ...island.counterTop, squareFeet: value } });
-                      }
-                    }}
+                    onChange={handleCounterTopAreaInputChange}
                     className="text-right"
                     min={0}
                     step={0.1}
