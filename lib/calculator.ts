@@ -28,6 +28,7 @@ export type AddonConfig = {
   quantity?: number
   id?: number
   dependentAddons?: AddonConfig[]
+  enabled?: boolean
 }
 
 export type IslandConfig = {
@@ -35,6 +36,7 @@ export type IslandConfig = {
   handle_type: string
   room_name: string
   priceLevel: number
+  islandCabinets?: CabinetConfig[]
   counterTop: SurfaceConfig
   waterfall?: SurfaceConfig
   aluminumProfiles?: AddonConfig
@@ -74,6 +76,7 @@ export function calculateCabinetPrice(
   console.log(`Calculating price for cabinet: ${cabinet.name}`);
   console.log(`  Area: ${cabinet.area}, Price Level: ${priceLevel}, Handle Type: ${cabinet.handle_type}`);
   console.log(`  Measurement: ${cabinet.measurement_type}, Linear Feet: ${cabinet.linearFeet}, Quantity: ${cabinet.quantity}`);
+  console.log(`  STR Enabled: ${cabinet.strEnabled}`);
   
   const pricing = cabinetPricing.find(
     p => p.name === cabinet.name &&
@@ -94,12 +97,20 @@ export function calculateCabinetPrice(
   console.log(`  Base price at level ${priceLevel}: ${basePrice}`);
   
   let finalPrice = 0;
-  if (cabinet.measurement_type.includes('LINEAR')) {
+  if (cabinet.measurement_type === "Linear FT" || cabinet.measurement_type === "Per SQFT") {
     finalPrice = basePrice * (cabinet.linearFeet || 0);
     console.log(`  Calculation: ${basePrice} * ${cabinet.linearFeet} = ${finalPrice}`);
   } else {
     finalPrice = basePrice * (cabinet.quantity || 0);
     console.log(`  Calculation: ${basePrice} * ${cabinet.quantity} = ${finalPrice}`);
+  }
+  
+  // Add STR addon price if enabled
+  if (cabinet.strEnabled && pricing.str_addon) {
+    const strAddonPrice = pricing.str_addon * (cabinet.linearFeet || cabinet.quantity || 0);
+    console.log(`  STR Addon: ${pricing.str_addon} * ${cabinet.linearFeet || cabinet.quantity || 0} = ${strAddonPrice}`);
+    finalPrice += strAddonPrice;
+    console.log(`  Total with STR: ${finalPrice}`);
   }
   
   return finalPrice;
@@ -164,7 +175,7 @@ export function findAddonDependencies(
       area: dependentAddon.area,
       measurement_type: dependentAddon.measurement_type,
       // Set quantity or linearFeet based on measurement type
-      ...(dependentAddon.measurement_type.includes("LINEAR") 
+      ...(dependentAddon.measurement_type === "Linear FT" || dependentAddon.measurement_type === "Per SQFT" 
         ? { linearFeet: 0 } // Will be calculated when needed
         : { quantity: 0 })  // Will be calculated when needed
     };
@@ -210,45 +221,78 @@ export function calculateAddonPrice(
   addonDependencies: AddonDependency[] = [],
   priceLevel: number = 0
 ): number {
+  // If the addon is specifically marked as not enabled, return 0
+  if (addon.enabled === false) {
+    return 0;
+  }
+  
+  // Check if the addon has valid measurements
+  if ((addon.measurement_type === "Linear FT" || addon.measurement_type === "Per SQFT") && 
+      (!addon.linearFeet || addon.linearFeet <= 0)) {
+    return 0;
+  } else if (addon.measurement_type === "Per Piece" && (!addon.quantity || addon.quantity <= 0)) {
+    return 0;
+  }
+  
   console.log(`Calculating price for addon: ${addon.name}`);
   console.log(`  Area: ${addon.area}, Measurement Type: ${addon.measurement_type}`);
   console.log(`  Linear Feet: ${addon.linearFeet}, Quantity: ${addon.quantity}`);
-  
+
+  // Find the matching addon pricing data
   const pricing = addonPricing.find(
     p => p.name === addon.name &&
          p.area === addon.area &&
          p.measurement_type === addon.measurement_type
   );
-  
+
   if (!pricing) {
     console.log(`  No matching pricing data found for addon ${addon.name}`);
     return 0;
   }
+
+  // Calculate the base price
+  let basePrice = 0;
+  // Use price property as it's defined in AddonPricing type
   
-  console.log(`  Found pricing data:`, pricing);
-  const basePrice = pricing.price;
-  console.log(`  Base price: ${basePrice}`);
+  console.log(`[DEBUG] Addon pricing object for ${addon.name}:`, {
+    pricing,
+    hasProperty: pricing && 'price' in pricing, 
+    value: pricing ? pricing.price : undefined,
+    isNumber: pricing && typeof pricing.price === 'number'
+  });
   
-  let finalPrice = 0;
+  // Use price field directly instead of price_level_0
+  basePrice = pricing.price as number;
   
-  if (addon.measurement_type === 'LINEAR FOOT') {
-    finalPrice = basePrice * (addon.linearFeet || 0);
-    console.log(`  Linear foot calculation: ${basePrice} * ${addon.linearFeet} = ${finalPrice}`);
-  } else if (addon.measurement_type === 'SQUARE FOOT') {
-    if ('squareFeet' in addon) {
-      const squareFeet = (addon as any).squareFeet || 0;
-      finalPrice = basePrice * squareFeet;
-      console.log(`  Square foot calculation: ${basePrice} * ${squareFeet} = ${finalPrice}`);
-    } else {
-      console.log(`  Warning: Addon has SQUARE FOOT measurement type but no squareFeet property`);
-      finalPrice = 0;
-    }
+  // Final price based on measurement type
+  let mainPrice = 0;
+  if (addon.measurement_type === "Linear FT" || addon.measurement_type === "Per SQFT") {
+    mainPrice = basePrice * (addon.linearFeet || 0);
   } else {
-    finalPrice = basePrice * (addon.quantity || 0);
-    console.log(`  Quantity calculation: ${basePrice} * ${addon.quantity} = ${finalPrice}`);
+    mainPrice = basePrice * (addon.quantity || 0);
   }
+
+  console.log(`  Main addon price: ${mainPrice}`);
+
+  // Calculate dependent addon prices if any
+  let dependentPrice = 0;
+  if (addon.dependentAddons && addon.dependentAddons.length > 0) {
+    for (const depAddon of addon.dependentAddons) {
+      // Make sure we have valid measurements for the dependent addons
+      if (depAddon.enabled === false) {
+        continue;
+      }
+      
+      const depPrice = calculateAddonPrice(depAddon, addonPricing);
+      dependentPrice += depPrice;
+      console.log(`  Dependent addon ${depAddon.name} price: ${depPrice}`);
+    }
+  }
+
+  const totalPrice = mainPrice + dependentPrice;
+  console.log(`  Total addon price (main + dependent): ${totalPrice}`);
   
-  return finalPrice;
+  return totalPrice;
 }
 
 export function calculateTotalPrice(
@@ -269,8 +313,11 @@ export function calculateTotalPrice(
   console.log(`Processing ${config.cabinets.length} cabinets`);
   for (const cabinet of config.cabinets) {
     // Skip cabinets with zero or undefined linearFeet/quantity
-    if ((cabinet.measurement_type.includes('LINEAR') && (!cabinet.linearFeet || cabinet.linearFeet <= 0)) ||
-        (!cabinet.measurement_type.includes('LINEAR') && (!cabinet.quantity || cabinet.quantity <= 0))) {
+    if ((cabinet.measurement_type === "Linear FT" || cabinet.measurement_type === "Per SQFT") && 
+        (!cabinet.linearFeet || cabinet.linearFeet <= 0)) {
+      console.log(`Skipping cabinet ${cabinet.name} - has zero or undefined measurements`);
+      continue;
+    } else if (cabinet.measurement_type === "Per Piece" && (!cabinet.quantity || cabinet.quantity <= 0)) {
       console.log(`Skipping cabinet ${cabinet.name} - has zero or undefined measurements`);
       continue;
     }
@@ -311,6 +358,22 @@ export function calculateTotalPrice(
   let addonsTotal = 0;
   console.log(`Processing ${config.addons.length} addons`);
   for (const addon of config.addons) {
+    // Skip addons that are explicitly marked as not enabled
+    if (addon.enabled === false) {
+      console.log(`Skipping addon ${addon.name} - explicitly marked as not enabled`);
+      continue;
+    }
+    
+    // Skip addons with zero or undefined linearFeet/quantity
+    if ((addon.measurement_type === "Linear FT" || addon.measurement_type === "Per SQFT") && 
+        (!addon.linearFeet || addon.linearFeet <= 0)) {
+      console.log(`Skipping addon ${addon.name} - has zero or undefined measurements`);
+      continue;
+    } else if (addon.measurement_type === "Per Piece" && (!addon.quantity || addon.quantity <= 0)) {
+      console.log(`Skipping addon ${addon.name} - has zero or undefined measurements`);
+      continue;
+    }
+    
     const price = calculateAddonPrice(addon, addonPricing, addonDependencies)
     console.log(`Addon ${addon.name} calculated price: ${price}`);
     if (price > 0) {
@@ -323,6 +386,11 @@ export function calculateTotalPrice(
       // If the addon has dependencies, also add them individually for display
       if (addon.dependentAddons && addon.dependentAddons.length > 0) {
         addon.dependentAddons.forEach(depAddon => {
+          // Skip dependent addons that are marked as not enabled
+          if (depAddon.enabled === false) {
+            return;
+          }
+          
           const dependency = addonDependencies.find(
             d => d.parent_addon_id === addon.id && 
                 d.dependent_addon_id === depAddon.id
@@ -335,9 +403,10 @@ export function calculateTotalPrice(
             // Create a copy with the calculated value
             const updatedDepAddon = {
               ...depAddon,
-              ...(depAddon.measurement_type.includes("LINEAR")
+              ...(depAddon.measurement_type === "Linear FT" || depAddon.measurement_type === "Per SQFT"
                 ? { linearFeet: calculatedValue }
-                : { quantity: calculatedValue })
+                : { quantity: calculatedValue }),
+              enabled: true
             };
             
             // Calculate and add the dependent addon's price
@@ -356,78 +425,107 @@ export function calculateTotalPrice(
 
   // Calculate island prices if enabled
   if (config.island?.enabled) {
+    console.log("Processing island items");
+    
     // Island cabinets
-    const islandCabinet: CabinetConfig = {
-      name: "Island Cabinet",
-      area: "ISLAND",
-      room_name: config.island.room_name,
-      measurement_type: "LINEAR FOOT",
-      handle_type: config.island.handle_type,
-      linearFeet: config.island.counterTop.squareFeet / 2, // Approximate linear feet from square feet
-      priceLevel: config.island.priceLevel,
-      strEnabled: false,
-    }
-
-    const islandCabinetPrice = calculateCabinetPrice(islandCabinet, cabinetPricing, islandCabinet.priceLevel)
-    console.log(`Island Cabinet calculated price: ${islandCabinetPrice}`);
-    if (islandCabinetPrice > 0) {
-      items.push({
+    if (config.island.islandCabinets && config.island.islandCabinets.length > 0) {
+      // Use actual island cabinets if available
+      for (const islandCabinet of config.island.islandCabinets) {
+        // Skip cabinets with zero or undefined linearFeet/quantity
+        if ((islandCabinet.measurement_type === "Linear FT" || islandCabinet.measurement_type === "Per SQFT") && 
+            (!islandCabinet.linearFeet || islandCabinet.linearFeet <= 0)) {
+          console.log(`Skipping island cabinet ${islandCabinet.name} - has zero or undefined measurements`);
+          continue;
+        } else if (islandCabinet.measurement_type === "Per Piece" && (!islandCabinet.quantity || islandCabinet.quantity <= 0)) {
+          console.log(`Skipping island cabinet ${islandCabinet.name} - has zero or undefined measurements`);
+          continue;
+        }
+        
+        const price = calculateCabinetPrice(islandCabinet, cabinetPricing, islandCabinet.priceLevel);
+        console.log(`Island Cabinet ${islandCabinet.name} calculated price: ${price}`);
+        if (price > 0) {
+          items.push({
+            name: `${islandCabinet.name} (kitchen-island)`,
+            price,
+          });
+        }
+      }
+    } else {
+      // Fallback to creating a mock island cabinet
+      const islandCabinet: CabinetConfig = {
         name: "Island Cabinet",
-        price: islandCabinetPrice,
-      })
+        area: "kitchen-island",
+        room_name: config.island.room_name,
+        measurement_type: "Linear FT",
+        handle_type: config.island.handle_type,
+        linearFeet: config.island.counterTop.squareFeet / 2, // Approximate linear feet from square feet
+        priceLevel: config.island.priceLevel,
+        strEnabled: false,
+      }
+
+      const islandCabinetPrice = calculateCabinetPrice(islandCabinet, cabinetPricing, islandCabinet.priceLevel)
+      console.log(`Island Cabinet calculated price: ${islandCabinetPrice}`);
+      if (islandCabinetPrice > 0) {
+        items.push({
+          name: "Island Cabinet (kitchen-island)",
+          price: islandCabinetPrice,
+        })
+      }
     }
 
-    // Island counter top
-    const islandCounterTopPrice = calculateSurfacePrice(config.island.counterTop, surfacePricing)
-    console.log(`Island Counter Top calculated price: ${islandCounterTopPrice}`);
-    if (islandCounterTopPrice > 0) {
-      items.push({
-        name: `Island Counter Top - ${config.island.counterTop.material}`,
-        price: islandCounterTopPrice,
-      })
+    // Island counter top - ensure it has sqft > 0
+    if (config.island.counterTop && config.island.counterTop.squareFeet > 0) {
+      const islandCounterTopPrice = calculateSurfacePrice(config.island.counterTop, surfacePricing)
+      console.log(`Island Counter Top calculated price: ${islandCounterTopPrice} (${config.island.counterTop.squareFeet} sqft)`);
+      if (islandCounterTopPrice > 0) {
+        items.push({
+          name: `Counter Top - ${config.island.counterTop.material} (kitchen-island)`,
+          price: islandCounterTopPrice,
+        })
+      }
     }
 
-    // Island waterfall if enabled
-    if (config.island.waterfall) {
+    // Island waterfall if enabled and has sqft > 0
+    if (config.island.waterfall && config.island.waterfall.squareFeet > 0) {
       const islandWaterfallPrice = calculateSurfacePrice(config.island.waterfall, surfacePricing)
-      console.log(`Island Waterfall calculated price: ${islandWaterfallPrice}`);
+      console.log(`Island Waterfall calculated price: ${islandWaterfallPrice} (${config.island.waterfall.squareFeet} sqft)`);
       if (islandWaterfallPrice > 0) {
         items.push({
-          name: `Island Waterfall - ${config.island.waterfall.material}`,
+          name: `Waterfall - ${config.island.waterfall.material} (kitchen-island)`,
           price: islandWaterfallPrice,
         })
       }
     }
 
     // Island addons
-    if (config.island.aluminumProfiles) {
+    if (config.island.aluminumProfiles?.enabled && config.island.aluminumProfiles?.linearFeet) {
       const aluminumProfilesPrice = calculateAddonPrice(config.island.aluminumProfiles, addonPricing, addonDependencies)
       console.log(`Island Aluminum Profiles calculated price: ${aluminumProfilesPrice}`);
       if (aluminumProfilesPrice > 0) {
         items.push({
-          name: "Island Aluminum Profiles",
+          name: "Aluminum Profiles (kitchen-island)",
           price: aluminumProfilesPrice,
         })
       }
     }
 
-    if (config.island.aluminumToeKicks) {
+    if (config.island.aluminumToeKicks?.enabled && config.island.aluminumToeKicks?.linearFeet) {
       const aluminumToeKicksPrice = calculateAddonPrice(config.island.aluminumToeKicks, addonPricing, addonDependencies)
       console.log(`Island Aluminum Toe Kicks calculated price: ${aluminumToeKicksPrice}`);
       if (aluminumToeKicksPrice > 0) {
         items.push({
-          name: "Island Aluminum Toe Kicks",
+          name: "Aluminum Toe Kicks (kitchen-island)",
           price: aluminumToeKicksPrice,
         })
       }
     }
 
-    if (config.island.integratedSink) {
+    if (config.island.integratedSink?.quantity && config.island.integratedSink?.quantity > 0) {
       const integratedSinkPrice = calculateAddonPrice(config.island.integratedSink, addonPricing, addonDependencies)
       console.log(`Island Integrated Sink calculated price: ${integratedSinkPrice}`);
       if (integratedSinkPrice > 0) {
         items.push({
-          name: "Island Integrated Sink",
+          name: "Integrated Sink (kitchen-island)",
           price: integratedSinkPrice,
         })
       }

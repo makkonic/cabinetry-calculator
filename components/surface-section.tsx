@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { SqftMeasurement } from "@/components/measurements/sqft-measurement"
 
 interface SurfaceSectionProps {
   surface: SurfaceConfig
@@ -22,6 +23,9 @@ interface SurfaceSectionProps {
 
 export function SurfaceSection({ surface, onChange, pricingData }: SurfaceSectionProps) {
   const [price, setPrice] = useState(0)
+  const [width, setWidth] = useState(1) // Default width in feet
+  const [length, setLength] = useState(1) // Default length in feet
+  const [initialized, setInitialized] = useState(false); // Flag for initialization
   const materials = ["laminate", "fenix", "porcelain", "quartz", "stainless", "glass_matte", "granite"]
   const materialLabels: Record<string, string> = {
     laminate: "Laminate",
@@ -39,13 +43,31 @@ export function SurfaceSection({ surface, onChange, pricingData }: SurfaceSectio
     
     // Update price state only if it changed (without adding price to dependencies)
     setPrice(calculatedPrice);
-  }, [surface, pricingData])
+
+    // Initialize width and length based on surface area
+    if (surface.squareFeet > 0 && !initialized) { // Only run if not initialized
+      // Use the square root as an approximation if we only have total area
+      const approxDimension = Math.sqrt(surface.squareFeet);
+      setWidth(approxDimension);
+      setLength(approxDimension);
+      setInitialized(true); // Set flag after initialization
+    }
+  }, [surface, pricingData, initialized])
 
   const handleSquareFeetChange = (value: number[]) => {
     onChange({
       ...surface,
       squareFeet: value[0],
     })
+    
+    // Update width and length to maintain the ratio
+    const newSqFt = value[0];
+    if (newSqFt > 0) {
+      const currentArea = width * length;
+      const ratio = Math.sqrt(newSqFt / currentArea);
+      setWidth(width * ratio);
+      setLength(length * ratio);
+    }
   }
 
   const handleSquareFeetInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -55,6 +77,42 @@ export function SurfaceSection({ surface, onChange, pricingData }: SurfaceSectio
         ...surface,
         squareFeet: value,
       })
+      
+      // Update width and length to maintain the ratio
+      if (value > 0) {
+        const currentArea = width * length;
+        const ratio = Math.sqrt(value / currentArea);
+        setWidth(width * ratio);
+        setLength(length * ratio);
+      }
+    }
+  }
+
+  // Handle width change
+  const handleWidthChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newWidth = Number.parseFloat(e.target.value)
+    if (!isNaN(newWidth) && newWidth >= 0) {
+      setWidth(newWidth);
+      // Calculate new square footage and update
+      const newArea = newWidth * length;
+      onChange({
+        ...surface,
+        squareFeet: newArea,
+      });
+    }
+  }
+
+  // Handle length change
+  const handleLengthChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newLength = Number.parseFloat(e.target.value)
+    if (!isNaN(newLength) && newLength >= 0) {
+      setLength(newLength);
+      // Calculate new square footage and update
+      const newArea = width * newLength;
+      onChange({
+        ...surface,
+        squareFeet: newArea,
+      });
     }
   }
 
@@ -91,25 +149,20 @@ export function SurfaceSection({ surface, onChange, pricingData }: SurfaceSectio
           </div>
 
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <Label htmlFor={`${surface.name}-square-feet`}>Square Feet</Label>
-              <Input
-                id={`${surface.name}-square-feet-input`}
-                type="number"
-                value={surface.squareFeet}
-                onChange={handleSquareFeetInputChange}
-                className="w-20 text-right"
-                min={0}
-                step={0.01}
-              />
-            </div>
-            <Slider
-              id={`${surface.name}-square-feet`}
-              value={[surface.squareFeet]}
-              min={0}
-              max={100}
-              step={0.01}
-              onValueChange={handleSquareFeetChange}
+            <SqftMeasurement
+              width={width}
+              length={length}
+              onWidthChange={(newWidth) => {
+                setWidth(newWidth);
+                const newArea = newWidth * length;
+                onChange({ ...surface, squareFeet: newArea });
+              }}
+              onLengthChange={(newLength) => {
+                setLength(newLength);
+                const newArea = width * newLength;
+                onChange({ ...surface, squareFeet: newArea });
+              }}
+              labelPrefix={surface.name}
             />
           </div>
         </div>

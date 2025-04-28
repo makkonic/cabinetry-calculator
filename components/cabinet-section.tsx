@@ -6,12 +6,17 @@ import { useState, useEffect } from "react"
 import type { CabinetConfig } from "@/lib/calculator"
 import type { CabinetPricing } from "@/lib/supabase"
 import { calculateCabinetPrice } from "@/lib/calculator"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardControlRow } from "@/components/ui/card"
 import { Slider } from "@/components/ui/slider"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { SqftMeasurement } from "@/components/measurements/sqft-measurement"
+import { LinearMeasurement } from "@/components/measurements/linear-measurement"
+import { QuantityMeasurement } from "@/components/measurements/quantity-measurement"
+import { NumberFlowSlider } from "@/components/ui/number-flow-slider"
+import NumberFlow from '@number-flow/react';
 
 interface CabinetSectionProps {
   cabinet: CabinetConfig
@@ -21,6 +26,10 @@ interface CabinetSectionProps {
 
 export function CabinetSection({ cabinet, onChange, pricingData }: CabinetSectionProps) {
   const [price, setPrice] = useState(0)
+  const [width, setWidth] = useState(1) // Default width for SQFT calculation
+  const [length, setLength] = useState(1) // Default length for SQFT calculation
+  const [initialized, setInitialized] = useState(false)
+  const [defaultInitialized, setDefaultInitialized] = useState(false)
   
   const pricing = pricingData.find(
     (p) => 
@@ -29,39 +38,72 @@ export function CabinetSection({ cabinet, onChange, pricingData }: CabinetSectio
       p.measurement_type === cabinet.measurement_type && 
       p.handle_type === cabinet.handle_type
   )
+
+  console.log("Current cabinet state:", cabinet);
+  console.log("Found pricing data:", pricing);
   
   // Initialize cabinet with proper values and calculate price 
   useEffect(() => {
     // First check if we need to initialize cabinet with default values
     const needsInitialization = 
-      (cabinet.measurement_type.includes("PIECE") && (!cabinet.quantity || cabinet.quantity === 0)) ||
-      (cabinet.measurement_type.includes("LINEAR") && (!cabinet.linearFeet || cabinet.linearFeet === 0));
+      (cabinet.measurement_type === "Per Piece" && (!cabinet.quantity || cabinet.quantity === 0)) ||
+      (cabinet.measurement_type === "Linear FT" && (!cabinet.linearFeet || cabinet.linearFeet === 0)) ||
+      (cabinet.measurement_type === "Per SQFT" && (!cabinet.linearFeet || cabinet.linearFeet === 0));
+    
+    console.log(`Needs initialization for ${cabinet.name}:`, needsInitialization);
     
     // Initialize with default values if needed
     if (needsInitialization) {
-      if (cabinet.measurement_type.includes("PIECE")) {
-        console.log("Setting initial quantity to 1 for per-piece measurement");
-        onChange({
-          ...cabinet,
-          quantity: 1
-        });
-      } else if (cabinet.measurement_type.includes("LINEAR")) {
-        console.log("Setting initial linearFeet to 1 for linear measurement");
-        onChange({
-          ...cabinet,
-          linearFeet: 1
-        });
+      if (!defaultInitialized) {
+        if (cabinet.measurement_type === "Per Piece") {
+          console.log("Setting initial quantity to 1 for per-piece measurement");
+          onChange({
+            ...cabinet,
+            quantity: 1
+          });
+        } else if (cabinet.measurement_type === "Linear FT" || cabinet.measurement_type === "Per SQFT") {
+          console.log(`Setting initial linearFeet to 1 for ${cabinet.measurement_type} measurement`);
+          onChange({
+            ...cabinet,
+            linearFeet: 1
+          });
+        }
+        setDefaultInitialized(true);
       }
       return; // Exit early - will be called again with updated values
     }
     
     // Calculate and update price
+    console.log("Calculating price with:", {
+      cabinet,
+      pricingData,
+      priceLevel: cabinet.priceLevel,
+      strEnabled: cabinet.strEnabled
+    });
+    
     const calculatedPrice = calculateCabinetPrice(cabinet, pricingData, cabinet.priceLevel);
     console.log(`Calculated cabinet price for ${cabinet.name}: ${calculatedPrice}`);
     setPrice(calculatedPrice);
-  }, [cabinet, pricingData, onChange]);
+
+    // Initialize width and length if it's a Per SQFT measurement and not yet initialized
+    if (cabinet.measurement_type === "Per SQFT" && cabinet.linearFeet && !initialized) {
+      const approxDimension = Math.sqrt(cabinet.linearFeet);
+      setWidth(approxDimension);
+      setLength(approxDimension);
+      setInitialized(true);
+    }
+  }, [
+    defaultInitialized, 
+    cabinet, 
+    cabinet.linearFeet, 
+    cabinet.quantity, 
+    cabinet.priceLevel,
+    cabinet.strEnabled, // Explicitly depend on strEnabled to trigger recalculation
+    pricingData
+  ]);
 
   const handleLinearFeetChange = (value: number[]) => {
+    console.log(`Linear feet changed to: ${value[0]}`);
     onChange({
       ...cabinet,
       linearFeet: value[0],
@@ -71,6 +113,7 @@ export function CabinetSection({ cabinet, onChange, pricingData }: CabinetSectio
   const handleLinearFeetInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = Number.parseFloat(e.target.value)
     if (!isNaN(value) && value >= 0) {
+      console.log(`Linear feet input changed to: ${value}`);
       onChange({
         ...cabinet,
         linearFeet: value,
@@ -78,24 +121,16 @@ export function CabinetSection({ cabinet, onChange, pricingData }: CabinetSectio
     }
   }
 
-  const handleQuantityChange = (value: number[]) => {
+  const handleQuantityChange = (value: number) => {
+    console.log(`Quantity changed to: ${value}`);
     onChange({
       ...cabinet,
-      quantity: value[0],
+      quantity: value,
     })
   }
 
-  const handleQuantityInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = Number.parseInt(e.target.value)
-    if (!isNaN(value) && value >= 0) {
-      onChange({
-        ...cabinet,
-        quantity: value,
-      })
-    }
-  }
-
   const handlePriceLevelChange = (value: string) => {
+    console.log(`Price level changed to: ${value}`);
     onChange({
       ...cabinet,
       priceLevel: Number.parseInt(value),
@@ -103,17 +138,47 @@ export function CabinetSection({ cabinet, onChange, pricingData }: CabinetSectio
   }
 
   const handleStrToggle = (checked: boolean) => {
+    console.log(`STR toggle changed to: ${checked}`);
     onChange({
       ...cabinet,
       strEnabled: checked,
     })
   }
 
+  // Handle width change for SQFT measurement
+  const handleWidthChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newWidth = Number.parseFloat(e.target.value)
+    if (!isNaN(newWidth) && newWidth >= 0) {
+      console.log(`Width changed to: ${newWidth}`);
+      setWidth(newWidth);
+      // Calculate square footage (area) and update linearFeet which stores the area
+      const newArea = newWidth * length;
+      onChange({
+        ...cabinet,
+        linearFeet: newArea,
+      });
+    }
+  }
+
+  // Handle length change for SQFT measurement
+  const handleLengthChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newLength = Number.parseFloat(e.target.value)
+    if (!isNaN(newLength) && newLength >= 0) {
+      console.log(`Length changed to: ${newLength}`);
+      setLength(newLength);
+      // Calculate square footage (area) and update linearFeet which stores the area
+      const newArea = width * newLength;
+      onChange({
+        ...cabinet,
+        linearFeet: newArea,
+      });
+    }
+  }
+
   // Render even if pricing is not found
-  const isLinearFoot = cabinet.measurement_type.includes("LINEAR")
+  const isLinearMeasurement = cabinet.measurement_type === "Linear FT"
+  const isSqftMeasurement = cabinet.measurement_type === "Per SQFT"
   const displayName = `${cabinet.name} (${cabinet.area}) - ${cabinet.handle_type}`
-  // Format the measurement type for display
-  const measurementTypeDisplay = cabinet.measurement_type.split('_').map(word => word.charAt(0) + word.slice(1).toLowerCase()).join(' ')
 
   return (
     <Card>
@@ -127,61 +192,257 @@ export function CabinetSection({ cabinet, onChange, pricingData }: CabinetSectio
       </CardHeader>
       <CardContent>
         <div className="space-y-6">
-          <div>
-            <Label htmlFor={`${cabinet.name}-price-level`} className="mb-2 block">Price Level</Label>
-            <Select value={cabinet.priceLevel.toString()} onValueChange={handlePriceLevelChange}>
-              <SelectTrigger id={`${cabinet.name}-price-level`}>
-                <SelectValue placeholder="Select price level" />
-              </SelectTrigger>
-              <SelectContent>
-                {Array.from({ length: 11 }, (_, i) => (
-                  <SelectItem key={i} value={i.toString()}>
-                    Level {i}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <Label htmlFor={`${cabinet.name}-measurement`}>
-                  {isLinearFoot ? "Linear Feet" : measurementTypeDisplay}
-                </Label>
-                <Input
-                  id={`${cabinet.name}-measurement-input`}
-                  type="number"
-                  value={isLinearFoot ? (cabinet.linearFeet || 0) : (cabinet.quantity || 0)}
-                  onChange={isLinearFoot ? handleLinearFeetInputChange : handleQuantityInputChange}
-                  className="w-20 text-right"
-                  min={0}
-                  step={isLinearFoot ? 0.01 : 1}
-                />
-              </div>
-              <Slider
-                id={`${cabinet.name}-measurement`}
-                value={[isLinearFoot ? (cabinet.linearFeet || 0) : (cabinet.quantity || 0)]}
-                min={0}
-                max={isLinearFoot ? 100 : 20}
-                step={isLinearFoot ? 0.01 : 1}
-                onValueChange={isLinearFoot ? handleLinearFeetChange : handleQuantityChange}
+          {isLinearMeasurement && (
+            <>
+              <CardControlRow
+                sliderSection={
+                  <div className="space-y-2">
+                    <Label htmlFor={`${cabinet.name}-measurement`}>{cabinet.measurement_type}</Label>
+                    <NumberFlowSlider
+                      id={`${cabinet.name}-measurement`}
+                      value={[cabinet.linearFeet || 0]}
+                      min={0}
+                      max={100}
+                      step={0.01}
+                      onValueChange={(val) => onChange({ ...cabinet, linearFeet: val[0] })}
+                      unit="ft"
+                    />
+                  </div>
+                }
+                dropdownSection={
+                  <div className="space-y-2">
+                    <Label htmlFor={`${cabinet.name}-price-level`}>Price Level</Label>
+                    <Select value={cabinet.priceLevel.toString()} onValueChange={handlePriceLevelChange}>
+                      <SelectTrigger id={`${cabinet.name}-price-level`}>
+                        <SelectValue placeholder="Select price level" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Array.from({ length: 11 }, (_, i) => (
+                          <SelectItem key={i} value={i.toString()}>
+                            Level {i}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                }
+                numberSection={
+                  <div className="space-y-2">
+                    <Label htmlFor={`${cabinet.name}-measurement-input`}>Value</Label>
+                    <Input
+                      id={`${cabinet.name}-measurement-input`}
+                      type="number"
+                      value={cabinet.linearFeet || 0}
+                      onChange={(e) => {
+                        const value = Number.parseFloat(e.target.value);
+                        if (!isNaN(value) && value >= 0) {
+                          onChange({ ...cabinet, linearFeet: value });
+                        }
+                      }}
+                      className="text-right"
+                      min={0}
+                      step={0.01}
+                    />
+                  </div>
+                }
               />
-            </div>
-          </div>
+            </>
+          )}
+
+          {isSqftMeasurement && (
+            <>
+              <CardControlRow
+                sliderSection={
+                  <div className="space-y-2">
+                    <Label htmlFor={`${cabinet.name}-sqft`}>Square Footage</Label>
+                    <NumberFlowSlider
+                      id={`${cabinet.name}-sqft`}
+                      value={[cabinet.linearFeet || 0]}
+                      min={0}
+                      max={100}
+                      step={0.01}
+                      onValueChange={(val) => {
+                        const newArea = val[0];
+                        // Update both the state and the cabinet config
+                        const newDimension = Math.sqrt(newArea);
+                        setWidth(newDimension);
+                        setLength(newDimension);
+                        onChange({ ...cabinet, linearFeet: newArea });
+                      }}
+                      unit="sqft"
+                    />
+                  </div>
+                }
+                dropdownSection={
+                  <div className="space-y-2">
+                    <Label htmlFor={`${cabinet.name}-price-level`}>Price Level</Label>
+                    <Select value={cabinet.priceLevel.toString()} onValueChange={handlePriceLevelChange}>
+                      <SelectTrigger id={`${cabinet.name}-price-level`}>
+                        <SelectValue placeholder="Select price level" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Array.from({ length: 11 }, (_, i) => (
+                          <SelectItem key={i} value={i.toString()}>
+                            Level {i}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                }
+                numberSection={
+                  <div className="space-y-2">
+                    <Label htmlFor={`${cabinet.name}-sqft-input`}>SQFT</Label>
+                    <Input
+                      id={`${cabinet.name}-sqft-input`}
+                      type="number"
+                      value={cabinet.linearFeet || 0}
+                      onChange={(e) => {
+                        const value = Number.parseFloat(e.target.value);
+                        if (!isNaN(value) && value >= 0) {
+                          const newDimension = Math.sqrt(value);
+                          setWidth(newDimension);
+                          setLength(newDimension);
+                          onChange({ ...cabinet, linearFeet: value });
+                        }
+                      }}
+                      className="text-right"
+                      min={0}
+                      step={0.01}
+                    />
+                  </div>
+                }
+              />
+
+              <div className="grid grid-cols-2 gap-4 mt-2">
+                <div className="space-y-2">
+                  <Label htmlFor={`${cabinet.name}-width`}>Width (ft)</Label>
+                  <Input
+                    id={`${cabinet.name}-width`}
+                    type="number"
+                    value={width}
+                    onChange={handleWidthChange}
+                    className="text-right"
+                    min={0}
+                    step={0.01}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor={`${cabinet.name}-length`}>Length (ft)</Label>
+                  <Input
+                    id={`${cabinet.name}-length`}
+                    type="number"
+                    value={length}
+                    onChange={handleLengthChange}
+                    className="text-right"
+                    min={0}
+                    step={0.01}
+                  />
+                </div>
+              </div>
+            </>
+          )}
+
+          {!isLinearMeasurement && !isSqftMeasurement && (
+            <CardControlRow
+              sliderSection={
+                <div className="space-y-2">
+                  <Label htmlFor={`${cabinet.name}-quantity-slider`}>Quantity</Label>
+                  <NumberFlowSlider
+                    id={`${cabinet.name}-quantity-slider`}
+                    value={[cabinet.quantity || 0]}
+                    min={0}
+                    max={20}
+                    step={1}
+                    onValueChange={(val) => onChange({ ...cabinet, quantity: val[0] })}
+                  />
+                </div>
+              }
+              dropdownSection={
+                <div className="space-y-2">
+                  <Label htmlFor={`${cabinet.name}-price-level`}>Price Level</Label>
+                  <Select value={cabinet.priceLevel.toString()} onValueChange={handlePriceLevelChange}>
+                    <SelectTrigger id={`${cabinet.name}-price-level`}>
+                      <SelectValue placeholder="Select price level" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Array.from({ length: 11 }, (_, i) => (
+                        <SelectItem key={i} value={i.toString()}>
+                          Level {i}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              }
+              numberSection={
+                <div className="space-y-2">
+                  <Label htmlFor={`${cabinet.name}-quantity-input`}>Qty</Label>
+                  <Input
+                    id={`${cabinet.name}-quantity-input`}
+                    type="number"
+                    value={cabinet.quantity || 0}
+                    onChange={(e) => {
+                      const value = Number.parseInt(e.target.value);
+                      if (!isNaN(value) && value >= 0) {
+                        onChange({ ...cabinet, quantity: value });
+                      }
+                    }}
+                    className="text-right"
+                    min={0}
+                    step={1}
+                  />
+                </div>
+              }
+            />
+          )}
 
           {pricing && pricing.str_addon > 0 && (
-            <div className="space-y-2">
+            <div className="mt-6 pt-4 border-t">
+              <h4 className="font-medium mb-2">Finish Upgrade</h4>
               <div className="flex items-center justify-between">
-                <h3 className="text-md font-semibold">STR Option (+${pricing.str_addon.toFixed(2)})</h3>
-                <Switch id={`${cabinet.name}-str`} checked={cabinet.strEnabled} onCheckedChange={handleStrToggle} />
+                <div>
+                  <p className="text-sm text-muted-foreground">
+                    +${pricing.str_addon.toFixed(2)} per {cabinet.measurement_type === "Per Piece" ? "piece" : "ft"}
+                    {cabinet.strEnabled && (
+                      <span className="ml-1">
+                        (Total: <NumberFlow 
+                          value={pricing.str_addon * (cabinet.linearFeet || cabinet.quantity || 0)}
+                          format={{ 
+                            style: 'currency', 
+                            currency: 'USD',
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2
+                          }}
+                          transformTiming={{ duration: 400, easing: 'ease-out' }}
+                          className="font-medium text-primary"
+                        />)
+                      </span>
+                    )}
+                  </p>
+                </div>
+                <Switch
+                  checked={cabinet.strEnabled || false}
+                  onCheckedChange={handleStrToggle}
+                  className={cabinet.strEnabled ? "bg-green-500" : ""}
+                />
               </div>
             </div>
           )}
 
           <div className="mt-4 text-right">
             <div className="text-sm text-gray-500">Price</div>
-            <div className="text-xl font-bold">${price.toFixed(2)}</div>
+            <NumberFlow 
+              value={price} 
+              format={{ 
+                style: 'currency', 
+                currency: 'USD',
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+              }}
+              transformTiming={{ duration: 500, easing: 'ease-out' }}
+              className="text-xl font-bold"
+            />
           </div>
         </div>
       </CardContent>

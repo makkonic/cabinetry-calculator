@@ -62,4 +62,60 @@
   .no-print {
     display: none;
   }
+  
+  /* Hide elements that shouldn't be printed */
+  button, .hidden-print {
+    display: none !important;
+  }
+  
+  /* Remove shadows and borders for cleaner print */
+  .print-friendly {
+    width: 100%;
+    padding: 0;
+    margin: 0;
+  }
+  
+  .print-friendly * {
+    page-break-inside: avoid;
+  }
+  
+  /* Make sure text is black for better printing */
+  .print-friendly .text-slate-600,
+  .print-friendly .text-slate-700,
+  .print-friendly .text-slate-800 {
+    color: black !important;
+  }
+  
+  /* Ensure enough space between sections */
+  .print-friendly .space-y-6 > * {
+    margin-top: 1.5rem !important;
+  }
+  
+  /* Card styling for print */
+  .print-friendly .card {
+    box-shadow: none;
+    border: none;
+  }
+  
+  /* Make sure the content is wide enough */
+  @page {
+    size: letter;
+    margin: 0.5in;
+  }
+}
+
+/* Fix for PDF export */
+.print-friendly {
+  background: white;
+}
+
+/* Hide number input spinners */
+.spin-hide::-webkit-outer-spin-button,
+.spin-hide::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.spin-hide {
+  -moz-appearance: textfield;
 }

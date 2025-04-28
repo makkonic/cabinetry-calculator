@@ -11,6 +11,9 @@ import { Slider } from "@/components/ui/slider"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
+import { QuantityMeasurement } from "@/components/measurements/quantity-measurement"
+import { NumberFlowSlider } from "@/components/ui/number-flow-slider"
+import NumberFlow from '@number-flow/react';
 
 interface AddonSectionProps {
   addon: AddonConfig
@@ -36,6 +39,9 @@ export function AddonSection({
   const [price, setPrice] = useState(0)
   const [dependentPrices, setDependentPrices] = useState<DependentPriceInfo[]>([])
   const [enabled, setEnabled] = useState(false)
+  const [width, setWidth] = useState(1) // Default width for SQFT calculation
+  const [length, setLength] = useState(1) // Default length for SQFT calculation
+  
   const pricing = pricingData.find(
     (p) => 
       p.name === addon.name && 
@@ -48,8 +54,19 @@ export function AddonSection({
     const isAddonEnabled = (addon.linearFeet !== undefined && addon.linearFeet > 0) || 
                          (addon.quantity !== undefined && addon.quantity > 0);
     
+    console.log(`[DEBUG] Calculating price for addon: ${addon.name} (${addon.area})`, {
+      addon,
+      pricing: pricing,
+      matchFound: !!pricing,
+      isEnabled: isAddonEnabled,
+      linearFeet: addon.linearFeet,
+      quantity: addon.quantity
+    });
+    
     // Calculate main addon price
     const calculatedPrice = calculateAddonPrice(addon, pricingData, dependencies);
+    
+    console.log(`[DEBUG] Calculated price for ${addon.name}: ${calculatedPrice}`);
     
     // Calculate dependent addon prices for display
     let newDependentPrices: DependentPriceInfo[] = [];
@@ -68,7 +85,7 @@ export function AddonSection({
           // Create updated dependent addon with calculated value
           const updatedDepAddon = {
             ...depAddon,
-            ...(depAddon.measurement_type.includes("LINEAR")
+            ...(depAddon.measurement_type === "Linear FT" || depAddon.measurement_type === "Per SQFT"
               ? { linearFeet: calculatedValue }
               : { quantity: calculatedValue })
           };
@@ -77,11 +94,20 @@ export function AddonSection({
             name: depAddon.name,
             value: calculatedValue,
             price: calculateAddonPrice(updatedDepAddon, pricingData),
-            unit: depAddon.measurement_type.includes("LINEAR") ? "linear ft" : "pieces"
+            unit: depAddon.measurement_type === "Linear FT" ? "linear ft" : 
+                 depAddon.measurement_type === "Per SQFT" ? "sq ft" : "pieces"
           };
         }
         return null;
       }).filter(Boolean) as DependentPriceInfo[];
+    }
+    
+    // Initialize width and length if it's a Per SQFT measurement
+    if (addon.measurement_type === "Per SQFT" && addon.linearFeet) {
+      // Use the square root as an approximation if we only have total area
+      const approxDimension = Math.sqrt(addon.linearFeet);
+      setWidth(approxDimension);
+      setLength(approxDimension);
     }
     
     // Update all states at once
@@ -92,27 +118,39 @@ export function AddonSection({
 
   const handleToggle = (checked: boolean) => {
     if (checked) {
-      if (addon.measurement_type.includes("LINEAR")) {
+      if (addon.measurement_type === "Linear FT") {
         onChange({
           ...addon,
           linearFeet: 1,
+          enabled: true
         })
+      } else if (addon.measurement_type === "Per SQFT") {
+        onChange({
+          ...addon,
+          linearFeet: 1, // 1 square foot = 1x1
+          enabled: true
+        })
+        setWidth(1);
+        setLength(1);
       } else {
         onChange({
           ...addon,
           quantity: 1,
+          enabled: true
         })
       }
     } else {
-      if (addon.measurement_type.includes("LINEAR")) {
+      if (addon.measurement_type === "Linear FT" || addon.measurement_type === "Per SQFT") {
         onChange({
           ...addon,
           linearFeet: 0,
+          enabled: false
         })
       } else {
         onChange({
           ...addon,
           quantity: 0,
+          enabled: false
         })
       }
     }
@@ -120,42 +158,129 @@ export function AddonSection({
   }
 
   const handleLinearFeetChange = (value: number[]) => {
+    // Recalculate dependent addons
+    const updatedDependentAddons = recalculateDependentAddons({
+      ...addon,
+      linearFeet: value[0],
+    });
+    
     onChange({
       ...addon,
       linearFeet: value[0],
+      dependentAddons: updatedDependentAddons
     })
   }
 
   const handleLinearFeetInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = Number.parseFloat(e.target.value)
     if (!isNaN(value) && value >= 0) {
+      // Recalculate dependent addons
+      const updatedDependentAddons = recalculateDependentAddons({
+        ...addon,
+        linearFeet: value,
+      });
+      
       onChange({
         ...addon,
         linearFeet: value,
+        dependentAddons: updatedDependentAddons
       })
     }
   }
 
-  const handleQuantityChange = (value: number[]) => {
+  const handleQuantityChange = (value: number) => {
+    // Recalculate dependent addons
+    const updatedDependentAddons = recalculateDependentAddons({
+      ...addon,
+      quantity: value,
+    });
+    
     onChange({
       ...addon,
-      quantity: value[0],
+      quantity: value,
+      dependentAddons: updatedDependentAddons
     })
   }
 
-  const handleQuantityInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = Number.parseInt(e.target.value)
-    if (!isNaN(value) && value >= 0) {
+  // Handle width change for SQFT measurement
+  const handleWidthChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newWidth = Number.parseFloat(e.target.value)
+    if (!isNaN(newWidth) && newWidth >= 0) {
+      setWidth(newWidth);
+      // Calculate square footage (area) and update linearFeet which stores the area
+      const newArea = newWidth * length;
+      
+      // Recalculate dependent addons
+      const updatedDependentAddons = recalculateDependentAddons({
+        ...addon,
+        linearFeet: newArea,
+      });
+      
       onChange({
         ...addon,
-        quantity: value,
-      })
+        linearFeet: newArea,
+        dependentAddons: updatedDependentAddons
+      });
     }
   }
 
+  // Handle length change for SQFT measurement
+  const handleLengthChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newLength = Number.parseFloat(e.target.value)
+    if (!isNaN(newLength) && newLength >= 0) {
+      setLength(newLength);
+      // Calculate square footage (area) and update linearFeet which stores the area
+      const newArea = width * newLength;
+      
+      // Recalculate dependent addons
+      const updatedDependentAddons = recalculateDependentAddons({
+        ...addon,
+        linearFeet: newArea,
+      });
+      
+      onChange({
+        ...addon,
+        linearFeet: newArea,
+        dependentAddons: updatedDependentAddons
+      });
+    }
+  }
+
+  // Helper function to recalculate dependent addon values
+  const recalculateDependentAddons = (parentAddon: AddonConfig): AddonConfig[] => {
+    if (!parentAddon.dependentAddons || parentAddon.dependentAddons.length === 0) {
+      return parentAddon.dependentAddons || [];
+    }
+    
+    return parentAddon.dependentAddons.map(depAddon => {
+      const dependency = dependencies.find(
+        d => d.parent_addon_id === parentAddon.id && 
+            d.dependent_addon_id === depAddon.id
+      );
+      
+      if (dependency) {
+        // Calculate the dependent value based on the parent
+        const calculatedValue = calculateDependentAddonValue(parentAddon, dependency);
+        
+        // Return updated dependent addon with calculated value
+        return {
+          ...depAddon,
+          ...(depAddon.measurement_type === "Linear FT" || depAddon.measurement_type === "Per SQFT"
+            ? { linearFeet: calculatedValue }
+            : { quantity: calculatedValue }),
+          enabled: true
+        };
+      }
+      
+      return depAddon;
+    });
+  };
+
   if (!pricing) return null
 
-  const isLinearFoot = addon.measurement_type.includes("LINEAR")
+  const isLinearFoot = addon.measurement_type === "Linear FT"
+  const isSqftMeasurement = addon.measurement_type === "Per SQFT"
+  const isQuantityMeasurement = !isLinearFoot && !isSqftMeasurement
   const displayName = `${addon.name} (${addon.area})`
   const hasDependencies = addon.dependentAddons && addon.dependentAddons.length > 0;
   
@@ -180,50 +305,124 @@ export function AddonSection({
       {enabled && (
         <CardContent>
           <div className="space-y-6">
-            <div className="space-y-2">
+            {isLinearFoot && (
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <Label htmlFor={`${addon.name}-measurement`}>
-                    {isLinearFoot ? "Linear Feet" : measurementTypeDisplay}
+                    Linear Feet
                   </Label>
                   <Input
                     id={`${addon.name}-measurement-input`}
                     type="number"
-                    value={isLinearFoot ? (addon.linearFeet || 0) : (addon.quantity || 0)}
-                    onChange={isLinearFoot ? handleLinearFeetInputChange : handleQuantityInputChange}
+                    value={addon.linearFeet || 0}
+                    onChange={handleLinearFeetInputChange}
                     className="w-20 text-right"
                     min={0}
-                    step={isLinearFoot ? 0.01 : 1}
+                    step={0.01}
                   />
                 </div>
-                <Slider
+                <NumberFlowSlider
                   id={`${addon.name}-measurement`}
-                  value={[isLinearFoot ? (addon.linearFeet || 0) : (addon.quantity || 0)]}
+                  value={[addon.linearFeet || 0]}
                   min={0}
-                  max={isLinearFoot ? 100 : 20}
-                  step={isLinearFoot ? 0.01 : 1}
-                  onValueChange={isLinearFoot ? handleLinearFeetChange : handleQuantityChange}
+                  max={100}
+                  step={0.01}
+                  onValueChange={handleLinearFeetChange}
+                  unit="ft"
                 />
-              </div>
-            </div>
-
-            {dependentPrices.length > 0 && (
-              <div className="space-y-2">
-                <h3 className="text-md font-semibold">Automatically includes:</h3>
-                <ul className="space-y-1 text-sm text-gray-500 dark:text-gray-400">
-                  {dependentPrices.map((dep, idx) => (
-                    <li key={idx} className="flex justify-between">
-                      <span>{dep.name}</span>
-                      <span>{dep.value} {dep.unit}</span>
-                    </li>
-                  ))}
-                </ul>
               </div>
             )}
 
-            <div className="text-right">
+            {isSqftMeasurement && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor={`${addon.name}-sqft`}>
+                    Square Feet
+                  </Label>
+                  <Input
+                    id={`${addon.name}-sqft-input`}
+                    type="number"
+                    value={addon.linearFeet || 0}
+                    onChange={handleLinearFeetInputChange}
+                    className="w-20 text-right"
+                    min={0}
+                    step={0.01}
+                  />
+                </div>
+                <NumberFlowSlider
+                  id={`${addon.name}-sqft`}
+                  value={[addon.linearFeet || 0]}
+                  min={0}
+                  max={100}
+                  step={0.01}
+                  onValueChange={handleLinearFeetChange}
+                  unit="sqft"
+                />
+
+                <div className="grid grid-cols-2 gap-4 mt-2">
+                  <div className="space-y-2">
+                    <Label htmlFor={`${addon.name}-width`}>Width (ft)</Label>
+                    <Input
+                      id={`${addon.name}-width`}
+                      type="number"
+                      value={width}
+                      onChange={handleWidthChange}
+                      className="text-right"
+                      min={0}
+                      step={0.01}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor={`${addon.name}-length`}>Length (ft)</Label>
+                    <Input
+                      id={`${addon.name}-length`}
+                      type="number"
+                      value={length}
+                      onChange={handleLengthChange}
+                      className="text-right"
+                      min={0}
+                      step={0.01}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {isQuantityMeasurement && (
+              <QuantityMeasurement 
+                value={addon.quantity || 0} 
+                onChange={handleQuantityChange}
+                label={measurementTypeDisplay}
+              />
+            )}
+
+            {hasDependencies && (
+              <div className="mt-4 space-y-2 border-t pt-4">
+                <h4 className="text-sm font-medium">Included Dependencies:</h4>
+                <div className="space-y-1">
+                  {dependentPrices.map((dep, idx) => (
+                    <div key={idx} className="text-sm flex justify-between">
+                      <span className="text-muted-foreground">{dep.name}: {dep.value} {dep.unit}</span>
+                      <span className="text-primary">${dep.price.toFixed(2)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="mt-4 text-right">
               <div className="text-sm text-gray-500">Price</div>
-              <div className="text-xl font-bold">${price.toFixed(2)}</div>
+              <NumberFlow 
+                value={price} 
+                format={{ 
+                  style: 'currency', 
+                  currency: 'USD',
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2
+                }}
+                transformTiming={{ duration: 500, easing: 'ease-out' }}
+                className="text-xl font-bold"
+              />
             </div>
           </div>
         </CardContent>

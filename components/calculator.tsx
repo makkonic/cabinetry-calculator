@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { CabinetSection } from "./cabinet-section"
 import { SurfaceSection } from "./surface-section"
 import { AddonSection } from "./addon-section"
@@ -57,6 +57,7 @@ export function Calculator() {
   const [loading, setLoading] = useState(true)
 
   const [handle_type, setHandleType] = useState<string>("Handles")
+  const [globalPriceLevel, setGlobalPriceLevel] = useState<number>(0)
   const [cabinets, setCabinets] = useState<CabinetConfig[]>([])
 
   const [surfaces, setSurfaces] = useState<SurfaceConfig[]>([
@@ -74,9 +75,9 @@ export function Calculator() {
   ])
 
   const [island, setIsland] = useState<IslandConfig>({
-    enabled: false,
+    enabled: true,
     handle_type: "Handles",
-    room_name: "Main Kitchen",
+    room_name: "Kitchen",
     priceLevel: 0,
     counterTop: {
       name: "Counter Top",
@@ -92,9 +93,24 @@ export function Calculator() {
       material: "laminate", 
       squareFeet: 0 
     },
+    aluminumProfiles: {
+      name: "Aluminum Profiles",
+      area: "kitchen-island",
+      measurement_type: "Linear FT",
+      linearFeet: 0,
+      enabled: false
+    },
+    aluminumToeKicks: {
+      name: "Aluminum Toe Kicks",
+      area: "kitchen-island", 
+      measurement_type: "Linear FT",
+      linearFeet: 0,
+      enabled: false
+    }
   })
 
-  const [activeTab, setActiveTab] = useState("cabinets")
+  const [activeTab, setActiveTab] = useState("kitchen")
+  const [activeKitchenTab, setActiveKitchenTab] = useState("cabinets")
   const [showCustomerForm, setShowCustomerForm] = useState(false)
 
   // Generate cabinet configs from cabinet pricing data
@@ -128,12 +144,12 @@ export function Calculator() {
             room_name: cabinet.room_name,
             measurement_type: cabinet.measurement_type,
             handle_type: cabinet.handle_type, 
-            priceLevel: 0,
+            priceLevel: globalPriceLevel,
             strEnabled: false
           }
 
           // Add the appropriate measurement field based on measurement type with initial value of 1
-          if (cabinet.measurement_type.includes('LINEAR')) {
+          if (cabinet.measurement_type === "Linear FT" || cabinet.measurement_type === "Per SQFT") {
             newCabinetConfig.linearFeet = 1  // Start with 1 linear foot
           } else {
             newCabinetConfig.quantity = 1  // Start with 1 piece
@@ -146,6 +162,42 @@ export function Calculator() {
 
     console.log("Generated Cabinet Configs:", cabinetConfigs)
     return cabinetConfigs
+  }
+
+  // Generate surface configs from surface pricing data
+  const generateSurfaceConfigs = (surfacePricingData: SurfacePricing[]) => {
+    // Create a set of unique combinations of name, area, and measurement_type
+    const uniqueSurfaces = new Set<string>()
+    const surfaceConfigs: SurfaceConfig[] = []
+
+    // Log the surface pricing data to debug
+    console.log("Surface Pricing Data:", surfacePricingData)
+
+    // If no data, return empty array
+    if (!surfacePricingData || surfacePricingData.length === 0) {
+      console.log("No surface pricing data found")
+      return []
+    }
+
+    surfacePricingData.forEach(surface => {
+      const key = `${surface.name}-${surface.area}-${surface.measurement_type}`
+      if (!uniqueSurfaces.has(key)) {
+        uniqueSurfaces.add(key)
+        
+        const newSurfaceConfig: SurfaceConfig = {
+          name: surface.name,
+          area: surface.area,
+          measurement_type: surface.measurement_type,
+          material: "laminate", // Default material
+          squareFeet: 1 // Default value
+        }
+
+        surfaceConfigs.push(newSurfaceConfig)
+      }
+    })
+
+    console.log("Generated Surface Configs:", surfaceConfigs)
+    return surfaceConfigs
   }
 
   // Process addons with dependencies
@@ -164,7 +216,7 @@ export function Calculator() {
         name: addon.name,
         area: addon.area,
         measurement_type: addon.measurement_type,
-        ...(addon.measurement_type.includes("LINEAR") 
+        ...(addon.measurement_type === "Linear FT" || addon.measurement_type === "Per SQFT" 
           ? { linearFeet: 0 } 
           : { quantity: 0 })
       };
@@ -224,6 +276,11 @@ export function Calculator() {
       
       console.log("Generated Cabinet Configurations:", cabinetsWithHandleTypes.length)
 
+      // Generate surface configurations
+      const surfaceConfigs = generateSurfaceConfigs(surfacePricingData)
+      
+      console.log("Generated Surface Configurations:", surfaceConfigs.length)
+
       setAreas(areasData)
       setMeasurementTypes(measurementTypesData)
       setHandleTypes(handleTypesData)
@@ -234,6 +291,7 @@ export function Calculator() {
       setAddonDependencies(addonDependenciesData)
       setAddons(processedAddons)
       setCabinets(cabinetsWithHandleTypes)
+      setSurfaces(surfaceConfigs)
 
       setLoading(false)
     } catch (error) {
@@ -263,16 +321,39 @@ export function Calculator() {
     }
   }, [handle_type, cabinetPricing])
 
-  // Calculate transformer quantity based on LED lighting
+  // Calculate transformer quantity based on LED lighting - using a ref to track previous value
+  const prevLedFeetRef = useRef<number>(0);
+  
   useEffect(() => {
-    const ledLighting = addons.find((addon) => addon.name === "LED Lighting")
-    if (ledLighting && ledLighting.linearFeet) {
-      const transformerQuantity = Math.ceil(ledLighting.linearFeet / 3)
-      setAddons((prev) =>
-        prev.map((addon) => (addon.name === "Transformer" ? { ...addon, quantity: transformerQuantity } : addon)),
-      )
+    const ledLighting = addons.find((addon) => addon.name === "LED Lighting");
+    const ledLinearFeet = ledLighting?.linearFeet || 0;
+    
+    // Only update if LED footage has changed to avoid infinite loops
+    if (ledLinearFeet !== prevLedFeetRef.current) {
+      prevLedFeetRef.current = ledLinearFeet;
+      
+      if (ledLinearFeet > 0) {
+        const transformerQuantity = Math.ceil(ledLinearFeet / 3);
+        
+        setAddons((prev) => {
+          // Find transformer in previous state
+          const transformerIndex = prev.findIndex(addon => addon.name === "Transformer");
+          
+          // Only update if transformer exists and quantity changed
+          if (transformerIndex >= 0 && prev[transformerIndex].quantity !== transformerQuantity) {
+            const updated = [...prev];
+            updated[transformerIndex] = { 
+              ...updated[transformerIndex], 
+              quantity: transformerQuantity 
+            };
+            return updated;
+          }
+          
+          return prev;
+        });
+      }
     }
-  }, [addons])
+  }, [addons]); // Keep addons dependency, but use ref to avoid infinite loops
 
   // Update island waterfall material when counter top material changes
   useEffect(() => {
@@ -296,6 +377,20 @@ export function Calculator() {
   }
 
   const pricingSummary = calculateTotalPrice(config, cabinetPricing, surfacePricing, addonPricing, addonDependencies)
+
+  const handleGlobalPriceLevelChange = (value: string) => {
+    const newPriceLevel = parseInt(value);
+    setGlobalPriceLevel(newPriceLevel);
+    
+    // Update all cabinet price levels to match the global price level
+    // without causing re-renders that would trigger the useEffect
+    setCabinets(prev => {
+      return prev.map(cabinet => ({
+        ...cabinet,
+        priceLevel: newPriceLevel
+      }));
+    });
+  }
 
   const handleCabinetChange = (index: number, cabinet: CabinetConfig) => {
     setCabinets((prev) => {
@@ -344,113 +439,148 @@ export function Calculator() {
         <Card className="mb-6">
           <CardContent className="pt-6">
             <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="grid grid-cols-3 mb-6">
-                <TabsTrigger value="cabinets">Cabinets</TabsTrigger>
-                <TabsTrigger value="surfaces">Surfaces</TabsTrigger>
-                <TabsTrigger value="island">Island</TabsTrigger>
+              <TabsList className="grid grid-cols-1 mb-6">
+                <TabsTrigger value="kitchen">Kitchen</TabsTrigger>
               </TabsList>
 
-              <TabsContent value="cabinets" className="space-y-6">
-                <div className="mb-6">
-                  <h2 className="text-lg font-semibold mb-3">Cabinet Handle Type</h2>
-                  <div>
-                    <Label className="mb-2 block">Handle Type</Label>
-                    <Select value={handle_type} onValueChange={(value) => setHandleType(value)}>
-                      <SelectTrigger id="cabinet-handle-type">
-                        <SelectValue placeholder="Select handle type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {handleTypes
-                          .filter(type => type.name.toLowerCase() !== "none") // Filter out "none" as a selectable option
-                          .map((type) => (
-                            <SelectItem key={type.name} value={type.name}>
-                              {type.name}
-                            </SelectItem>
-                          ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
+              <TabsContent value="kitchen" className="space-y-6">
+                <Tabs value={activeKitchenTab} onValueChange={setActiveKitchenTab}>
+                  <TabsList className="grid grid-cols-3 mb-6">
+                    <TabsTrigger value="cabinets">Cabinets</TabsTrigger>
+                    <TabsTrigger value="surfaces">Surfaces</TabsTrigger>
+                    <TabsTrigger value="island">Island</TabsTrigger>
+                  </TabsList>
 
-                {cabinets.length === 0 ? (
-                  <div className="text-center p-4">
-                    <p>No cabinet options available for the selected handle type.</p>
-                  </div>
-                ) : (
-                  cabinets.map((cabinet, index) => (
-                    <CabinetSection
-                      key={`${cabinet.name}-${cabinet.area}-${cabinet.room_name}-${cabinet.measurement_type}-${cabinet.handle_type}`}
-                      cabinet={cabinet}
-                      onChange={(updated) => handleCabinetChange(index, updated)}
-                      pricingData={cabinetPricing}
+                  <TabsContent value="cabinets" className="space-y-6">
+                    <div className="mb-6">
+                      <h2 className="text-lg font-semibold mb-3">Cabinet Settings</h2>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <Label className="mb-2 block">Handle Type</Label>
+                          <Select value={handle_type} onValueChange={(value) => setHandleType(value)}>
+                            <SelectTrigger id="cabinet-handle-type">
+                              <SelectValue placeholder="Select handle type" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {handleTypes
+                                .filter(type => type.name.toLowerCase() !== "none") // Filter out "none" as a selectable option
+                                .map((type) => (
+                                  <SelectItem key={type.name} value={type.name}>
+                                    {type.name}
+                                  </SelectItem>
+                                ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label className="mb-2 block">Default Price Level</Label>
+                          <Select value={globalPriceLevel.toString()} onValueChange={handleGlobalPriceLevelChange}>
+                            <SelectTrigger id="global-price-level">
+                              <SelectValue placeholder="Select price level" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {Array.from({ length: 11 }, (_, i) => (
+                                <SelectItem key={i} value={i.toString()}>
+                                  Level {i}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    </div>
+
+                    {cabinets.length === 0 ? (
+                      <div className="text-center p-4">
+                        <p>No cabinet options available for the selected handle type.</p>
+                      </div>
+                    ) : (
+                      cabinets
+                        .filter(cabinet => cabinet.room_name === "Kitchen" && cabinet.area !== "kitchen-island")
+                        .map((cabinet, index) => {
+                          const originalIndex = cabinets.findIndex(c => 
+                            c.name === cabinet.name && 
+                            c.area === cabinet.area && 
+                            c.room_name === cabinet.room_name &&
+                            c.measurement_type === cabinet.measurement_type &&
+                            c.handle_type === cabinet.handle_type
+                          );
+                          return (
+                            <CabinetSection
+                              key={`${cabinet.name}-${cabinet.area}-${cabinet.room_name}-${cabinet.measurement_type}-${cabinet.handle_type}`}
+                              cabinet={cabinet}
+                              onChange={(updated) => handleCabinetChange(originalIndex, updated)}
+                              pricingData={cabinetPricing}
+                            />
+                          );
+                        })
+                    )}
+
+                    <h2 className="text-lg font-semibold mb-3 pt-4">Kitchen Add-ons</h2>
+                    {addons
+                      .filter((addon) => addon.name !== "Transformer" && addon.area.toLowerCase() === "kitchen")
+                      .map((addon, index) => {
+                        const addonIndex = addons.findIndex(a => a.name === addon.name && a.area === addon.area);
+                        return (
+                          <AddonSection
+                            key={`${addon.name}-${addon.area}-${addon.measurement_type}`}
+                            addon={addon}
+                            onChange={(updated) => handleAddonChange(addonIndex, updated)}
+                            pricingData={addonPricing}
+                            dependencies={addonDependencies}
+                          />
+                        );
+                      })}
+                  </TabsContent>
+
+                  <TabsContent value="surfaces" className="space-y-6">
+                    {surfaces
+                      .filter(surface => surface.area === "kitchen")
+                      .map((surface, index) => {
+                        const originalIndex = surfaces.findIndex(s => 
+                          s.name === surface.name && 
+                          s.area === surface.area && 
+                          s.measurement_type === surface.measurement_type
+                        );
+                        return (
+                          <SurfaceSection
+                            key={`${surface.name}-${surface.area}-${surface.measurement_type}`}
+                            surface={surface}
+                            onChange={(updated) => handleSurfaceChange(originalIndex, updated)}
+                            pricingData={surfacePricing}
+                          />
+                        );
+                      })}
+                    
+                    <h2 className="text-lg font-semibold mb-3 pt-4">Surface Add-ons</h2>
+                    {addons
+                      .filter((addon) => addon.name !== "Transformer" && addon.area.toLowerCase() === "kitchen-surface")
+                      .map((addon, index) => {
+                        const addonIndex = addons.findIndex(a => a.name === addon.name && a.area === addon.area);
+                        return (
+                          <AddonSection
+                            key={`${addon.name}-${addon.area}-${addon.measurement_type}`}
+                            addon={addon}
+                            onChange={(updated) => handleAddonChange(addonIndex, updated)}
+                            pricingData={addonPricing}
+                            dependencies={addonDependencies}
+                          />
+                        );
+                      })}
+                  </TabsContent>
+
+                  <TabsContent value="island" className="space-y-6">
+                    <IslandSection
+                      island={island}
+                      onChange={handleIslandChange}
+                      cabinetPricing={cabinetPricing}
+                      surfacePricing={surfacePricing}
+                      addonPricing={addonPricing}
+                      handleTypes={handleTypes}
+                      addonDependencies={addonDependencies}
                     />
-                  ))
-                )}
-
-                <h2 className="text-lg font-semibold mb-3 pt-4">Kitchen Add-ons</h2>
-                {addons
-                  .filter((addon) => addon.name !== "Transformer" && addon.area.toLowerCase() === "kitchen")
-                  .map((addon, index) => {
-                    const addonIndex = addons.findIndex(a => a.name === addon.name && a.area === addon.area);
-                    return (
-                      <AddonSection
-                        key={`${addon.name}-${addon.area}-${addon.measurement_type}`}
-                        addon={addon}
-                        onChange={(updated) => handleAddonChange(addonIndex, updated)}
-                        pricingData={addonPricing}
-                        dependencies={addonDependencies}
-                      />
-                    );
-                  })}
-              </TabsContent>
-
-              <TabsContent value="surfaces" className="space-y-6">
-                {surfaces.map((surface, index) => (
-                  <SurfaceSection
-                    key={`${surface.name}-${surface.area}-${surface.measurement_type}`}
-                    surface={surface}
-                    onChange={(updated) => handleSurfaceChange(index, updated)}
-                    pricingData={surfacePricing}
-                  />
-                ))}
-                
-                <h2 className="text-lg font-semibold mb-3 pt-4">Surface Add-ons</h2>
-                {addons
-                  .filter((addon) => addon.name !== "Transformer" && addon.area.toLowerCase() === "kitchen-surface")
-                  .map((addon, index) => {
-                    const addonIndex = addons.findIndex(a => a.name === addon.name && a.area === addon.area);
-                    return (
-                      <AddonSection
-                        key={`${addon.name}-${addon.area}-${addon.measurement_type}`}
-                        addon={addon}
-                        onChange={(updated) => handleAddonChange(addonIndex, updated)}
-                        pricingData={addonPricing}
-                        dependencies={addonDependencies}
-                      />
-                    );
-                  })}
-              </TabsContent>
-
-              <TabsContent value="island" className="space-y-6">
-                <IslandSection
-                  island={island}
-                  onChange={handleIslandChange}
-                  cabinetPricing={cabinetPricing}
-                  surfacePricing={surfacePricing}
-                  addonPricing={addonPricing}
-                  handleTypes={handleTypes}
-                  addonDependencies={addonDependencies}
-                />
-                {/* Debug info */}
-                <div className="mt-4 p-4 bg-slate-100 rounded-md">
-                  <h3 className="font-semibold mb-2">Debug Info (data passed to IslandSection):</h3>
-                  <div className="text-xs">
-                    <p>Cabinet Pricing: {cabinetPricing.length} items</p>
-                    <p>Surface Pricing: {surfacePricing.length} items</p>
-                    <p>Addon Pricing: {addonPricing.length} items</p>
-                    <p>Addon Dependencies: {addonDependencies.length} items</p>
-                  </div>
-                </div>
+                  </TabsContent>
+                </Tabs>
               </TabsContent>
             </Tabs>
 
