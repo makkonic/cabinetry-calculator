@@ -88,7 +88,7 @@ export function IslandSection({
             measurement_type: cabinet.measurement_type,
             handle_type: cabinet.handle_type,
             priceLevel: island.priceLevel,
-            linearFeet: 1, // Default value
+            linearFeet: 0, // Default value
             strEnabled: false
           };
 
@@ -145,16 +145,22 @@ export function IslandSection({
 
   // Initialize countertop with proper values when component mounts
   useEffect(() => {
+    console.log("Initializing counter top with surfacePricing:", surfacePricing);
+    
     // Find a matching entry in surfacePricing for counter top in kitchen-island
     const counterTopPricing = surfacePricing.filter(p => 
       p.area === "kitchen-island" && 
       (p.name.toLowerCase().includes("counter") || p.name.toLowerCase().includes("countertop"))
     );
     
+    console.log("Found potential counter top pricing entries:", counterTopPricing);
+    
     // If we don't have a properly configured counter top or it has invalid values
     if (!island.counterTop.material || !island.counterTop.squareFeet || island.counterTop.squareFeet <= 0) {
       // Use the first matching counter top pricing entry if available
       const matchingPricing = counterTopPricing.length > 0 ? counterTopPricing[0] : null;
+      
+      console.log("Using counter top pricing data:", matchingPricing);
       
       // Create a proper counter top with defaults or matching values
       const updatedIsland = {
@@ -168,6 +174,8 @@ export function IslandSection({
           squareFeet: island.counterTop.squareFeet || 1 // Default to 1 sqft if not set
         }
       };
+      
+      console.log("Updated island config with proper counter top:", updatedIsland.counterTop);
       
       // Update island configuration
       onChange(updatedIsland);
@@ -186,6 +194,13 @@ export function IslandSection({
       return;
     }
     
+    console.log("Calculating island prices with:", { 
+      island,
+      surfacePricing,
+      cabinetPricing,
+      islandCabinets
+    });
+
     // Calculate all prices from all island cabinets
     let totalCabinetPrice = 0;
     
@@ -194,12 +209,15 @@ export function IslandSection({
       islandCabinets.forEach(cabinet => {
         if ((cabinet.measurement_type === "Linear FT" || cabinet.measurement_type === "Per SQFT") && 
             (!cabinet.linearFeet || cabinet.linearFeet <= 0)) {
+          console.log(`Skipping island cabinet ${cabinet.name} - has zero or undefined measurements`);
           return;
         } else if (cabinet.measurement_type === "Per Piece" && (!cabinet.quantity || cabinet.quantity <= 0)) {
+          console.log(`Skipping island cabinet ${cabinet.name} - has zero or undefined measurements`);
           return;
         }
         
         const cabPrice = calculateCabinetPrice(cabinet, cabinetPricing, cabinet.priceLevel);
+        console.log(`Island Cabinet ${cabinet.name} calculated price: ${cabPrice}`);
         totalCabinetPrice += cabPrice;
       });
     }
@@ -208,30 +226,35 @@ export function IslandSection({
     let ctopPrice = 0;
     if (island.counterTop && island.counterTop.squareFeet > 0) {
       ctopPrice = calculateSurfacePrice(island.counterTop, surfacePricing);
+      console.log(`Island Counter Top price: ${ctopPrice} (${island.counterTop.squareFeet} sqft of ${island.counterTop.material})`);
     }
     
     // Calculate waterfall price
     let wfPrice = 0;
     if (island.waterfall && island.waterfall.squareFeet > 0) {
       wfPrice = calculateSurfacePrice(island.waterfall, surfacePricing);
+      console.log(`Island Waterfall price: ${wfPrice} (${island.waterfall.squareFeet} sqft of ${island.waterfall.material})`);
     }
     
     // Calculate aluminum profiles price
     let alProfilesPrice = 0;
     if (island.aluminumProfiles?.enabled && island.aluminumProfiles?.linearFeet) {
       alProfilesPrice = calculateAddonPrice(island.aluminumProfiles, addonPricing, addonDependencies);
+      console.log(`Island Aluminum Profiles price: ${alProfilesPrice}`);
     }
     
     // Calculate aluminum toe kicks price
     let alToeKicksPrice = 0;
     if (island.aluminumToeKicks?.enabled && island.aluminumToeKicks?.linearFeet) {
       alToeKicksPrice = calculateAddonPrice(island.aluminumToeKicks, addonPricing, addonDependencies);
+      console.log(`Island Aluminum Toe Kicks price: ${alToeKicksPrice}`);
     }
     
     // Calculate integrated sink price
     let intSinkPrice = 0;
     if (island.integratedSink && island.integratedSink.quantity && island.integratedSink.quantity > 0) {
       intSinkPrice = calculateAddonPrice(island.integratedSink, addonPricing, addonDependencies);
+      console.log(`Island Integrated Sink price: ${intSinkPrice}`);
     }
     
     // Update all prices in state
@@ -244,6 +267,7 @@ export function IslandSection({
     
     // Calculate total price for island
     const total = totalCabinetPrice + ctopPrice + wfPrice + alProfilesPrice + alToeKicksPrice + intSinkPrice;
+    console.log(`Total island price: ${total}`);
     setTotalPrice(total);
     
   }, [

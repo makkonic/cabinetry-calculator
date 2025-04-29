@@ -26,10 +26,9 @@ interface CabinetSectionProps {
 
 export function CabinetSection({ cabinet, onChange, pricingData }: CabinetSectionProps) {
   const [price, setPrice] = useState(0)
-  const [width, setWidth] = useState(1) // Default width for SQFT calculation
-  const [length, setLength] = useState(1) // Default length for SQFT calculation
+  const [width, setWidth] = useState(0) // Default to 0 for SQFT calculation
+  const [length, setLength] = useState(0) // Default to 0 for SQFT calculation
   const [initialized, setInitialized] = useState(false)
-  const [defaultInitialized, setDefaultInitialized] = useState(false)
   
   const pricing = pricingData.find(
     (p) => 
@@ -42,38 +41,9 @@ export function CabinetSection({ cabinet, onChange, pricingData }: CabinetSectio
   console.log("Current cabinet state:", cabinet);
   console.log("Found pricing data:", pricing);
   
-  // Initialize cabinet with proper values and calculate price 
+  // Calculate price and initialize dimensions for SQFT measurements
   useEffect(() => {
-    // First check if we need to initialize cabinet with default values
-    const needsInitialization = 
-      (cabinet.measurement_type === "Per Piece" && (!cabinet.quantity || cabinet.quantity === 0)) ||
-      (cabinet.measurement_type === "Linear FT" && (!cabinet.linearFeet || cabinet.linearFeet === 0)) ||
-      (cabinet.measurement_type === "Per SQFT" && (!cabinet.linearFeet || cabinet.linearFeet === 0));
-    
-    console.log(`Needs initialization for ${cabinet.name}:`, needsInitialization);
-    
-    // Initialize with default values if needed
-    if (needsInitialization) {
-      if (!defaultInitialized) {
-        if (cabinet.measurement_type === "Per Piece") {
-          console.log("Setting initial quantity to 1 for per-piece measurement");
-          onChange({
-            ...cabinet,
-            quantity: 1
-          });
-        } else if (cabinet.measurement_type === "Linear FT" || cabinet.measurement_type === "Per SQFT") {
-          console.log(`Setting initial linearFeet to 1 for ${cabinet.measurement_type} measurement`);
-          onChange({
-            ...cabinet,
-            linearFeet: 1
-          });
-        }
-        setDefaultInitialized(true);
-      }
-      return; // Exit early - will be called again with updated values
-    }
-    
-    // Calculate and update price
+    // Calculate and update price - let the calculator function handle zero values
     console.log("Calculating price with:", {
       cabinet,
       pricingData,
@@ -86,20 +56,26 @@ export function CabinetSection({ cabinet, onChange, pricingData }: CabinetSectio
     setPrice(calculatedPrice);
 
     // Initialize width and length if it's a Per SQFT measurement and not yet initialized
-    if (cabinet.measurement_type === "Per SQFT" && cabinet.linearFeet && !initialized) {
-      const approxDimension = Math.sqrt(cabinet.linearFeet);
-      setWidth(approxDimension);
-      setLength(approxDimension);
+    if (cabinet.measurement_type === "Per SQFT" && !initialized) {
+      if (cabinet.linearFeet && cabinet.linearFeet > 0) {
+        const approxDimension = Math.sqrt(cabinet.linearFeet);
+        setWidth(approxDimension);
+        setLength(approxDimension);
+      } else {
+        // If square footage is 0, ensure width and length are also 0
+        setWidth(0);
+        setLength(0);
+      }
       setInitialized(true);
     }
   }, [
-    defaultInitialized, 
     cabinet, 
     cabinet.linearFeet, 
     cabinet.quantity, 
     cabinet.priceLevel,
     cabinet.strEnabled, // Explicitly depend on strEnabled to trigger recalculation
-    pricingData
+    pricingData,
+    initialized
   ]);
 
   const handleLinearFeetChange = (value: number[]) => {

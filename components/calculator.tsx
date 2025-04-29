@@ -63,17 +63,17 @@ export function Calculator() {
   const [cabinets, setCabinets] = useState<CabinetConfig[]>([])
 
   const [surfaces, setSurfaces] = useState<SurfaceConfig[]>([
-    { name: "Countertop", area: "kitchen-surfaces", measurement_type: "Per SQFT", material: "laminate", squareFeet: 1 },
-    { name: "Backsplash", area: "kitchen-surfaces", measurement_type: "Per SQFT", material: "laminate", squareFeet: 1 },
+    { name: "Countertop", area: "kitchen-surfaces", measurement_type: "Per SQFT", material: "laminate", squareFeet: 0 },
+    { name: "Backsplash", area: "kitchen-surfaces", measurement_type: "Per SQFT", material: "laminate", squareFeet: 0 },
   ])
 
   const [addons, setAddons] = useState<AddonConfig[]>([
-    { name: "Aluminum Profiles", area: "kitchen", measurement_type: "Linear FT", linearFeet: 1 },
-    { name: "Aluminum Toe Kicks", area: "kitchen", measurement_type: "Linear FT", linearFeet: 1 },
-    { name: "LED Lighting", area: "kitchen", measurement_type: "Linear FT", linearFeet: 1 },
-    { name: "Transformer", area: "kitchen", measurement_type: "Per Piece", quantity: 1 },
-    { name: "Integrated Sink", area: "kitchen", measurement_type: "Per Piece", quantity: 1 },
-    { name: "Power Strip", area: "kitchen", measurement_type: "Per Piece", quantity: 1 },
+    { name: "Aluminum Profiles", area: "kitchen", measurement_type: "Linear FT", linearFeet: 0 },
+    { name: "Aluminum Toe Kicks", area: "kitchen", measurement_type: "Linear FT", linearFeet: 0 },
+    { name: "LED Lighting", area: "kitchen", measurement_type: "Linear FT", linearFeet: 0 },
+    { name: "Transformer", area: "kitchen", measurement_type: "Per Piece", quantity: 0 },
+    { name: "Integrated Sink", area: "kitchen", measurement_type: "Per Piece", quantity: 0 },
+    { name: "Power Strip", area: "kitchen", measurement_type: "Per Piece", quantity: 0 },
   ])
 
   const [island, setIsland] = useState<IslandConfig>({
@@ -86,7 +86,7 @@ export function Calculator() {
       area: "kitchen-island",
       measurement_type: "Per SQFT",
       material: "laminate",
-      squareFeet: 10,
+      squareFeet: 0,
     },
     waterfall: { 
       name: "Waterfall", 
@@ -152,11 +152,11 @@ export function Calculator() {
             strEnabled: false
           }
 
-          // Add the appropriate measurement field based on measurement type with initial value of 1
+          // Add the appropriate measurement field based on measurement type with initial value of 0
           if (cabinet.measurement_type === "Linear FT" || cabinet.measurement_type === "Per SQFT") {
-            newCabinetConfig.linearFeet = 1  // Start with 1 linear foot
+            newCabinetConfig.linearFeet = 0  // Start with 0 linear feet
           } else {
-            newCabinetConfig.quantity = 1  // Start with 1 piece
+            newCabinetConfig.quantity = 0  // Start with 0 pieces
           }
 
           cabinetConfigs.push(newCabinetConfig)
@@ -203,7 +203,7 @@ export function Calculator() {
           area: standardizedArea,
           measurement_type: surface.measurement_type,
           material: "laminate", // Default material
-          squareFeet: 1 // Default value
+          squareFeet: 0 // Default value of 0
         }
 
         surfaceConfigs.push(newSurfaceConfig)
@@ -223,14 +223,14 @@ export function Calculator() {
           area: "kitchen-surfaces", 
           measurement_type: "Per SQFT", 
           material: "laminate" as const, 
-          squareFeet: 1 
+          squareFeet: 0 
         },
         { 
           name: "Backsplash", 
           area: "kitchen-surfaces", 
           measurement_type: "Per SQFT", 
           material: "laminate" as const, 
-          squareFeet: 1 
+          squareFeet: 0 
         }
       ];
       

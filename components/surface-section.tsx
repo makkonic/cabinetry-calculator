@@ -24,8 +24,8 @@ interface SurfaceSectionProps {
 
 export function SurfaceSection({ surface, onChange, pricingData }: SurfaceSectionProps) {
   const [price, setPrice] = useState(0)
-  const [width, setWidth] = useState(1) // Default width in feet
-  const [length, setLength] = useState(1) // Default length in feet
+  const [width, setWidth] = useState(0) // Initialize to 0 instead of 1
+  const [length, setLength] = useState(0) // Initialize to 0 instead of 1
   const [initialized, setInitialized] = useState(false); // Flag for initialization
   
   const materials = ["laminate", "fenix", "porcelain", "quartz", "stainless", "glass_matte", "granite"]
@@ -55,12 +55,18 @@ export function SurfaceSection({ surface, onChange, pricingData }: SurfaceSectio
     // Update price state only if it changed (without adding price to dependencies)
     setPrice(calculatedPrice);
 
-    // Initialize width and length based on surface area
-    if (surface.squareFeet > 0 && !initialized) { // Only run if not initialized
-      // Use the square root as an approximation if we only have total area
-      const approxDimension = Math.sqrt(surface.squareFeet);
-      setWidth(approxDimension);
-      setLength(approxDimension);
+    // Initialize width and length based on surface area if not already initialized
+    if (!initialized) {
+      if (surface.squareFeet > 0) {
+        // Use the square root as an approximation if we only have total area
+        const approxDimension = Math.sqrt(surface.squareFeet);
+        setWidth(approxDimension);
+        setLength(approxDimension);
+      } else {
+        // If square footage is 0, ensure width and length are also 0
+        setWidth(0);
+        setLength(0);
+      }
       setInitialized(true); // Set flag after initialization
     }
   }, [surface, pricingData, initialized])
@@ -72,12 +78,24 @@ export function SurfaceSection({ surface, onChange, pricingData }: SurfaceSectio
       squareFeet: newSqFt,
     })
     
-    // Update width and length to maintain the ratio
+    // Update width and length to maintain the ratio or set to 0 if area is 0
     if (newSqFt > 0) {
       const currentArea = width * length;
-      const ratio = Math.sqrt(newSqFt / currentArea);
-      setWidth(width * ratio);
-      setLength(length * ratio);
+      // If current area is 0, set equal dimensions
+      if (currentArea <= 0) {
+        const newDimension = Math.sqrt(newSqFt);
+        setWidth(newDimension);
+        setLength(newDimension);
+      } else {
+        // Otherwise maintain ratio
+        const ratio = Math.sqrt(newSqFt / currentArea);
+        setWidth(width * ratio);
+        setLength(length * ratio);
+      }
+    } else {
+      // If new area is 0, set width and length to 0
+      setWidth(0);
+      setLength(0);
     }
   }
 
@@ -89,12 +107,24 @@ export function SurfaceSection({ surface, onChange, pricingData }: SurfaceSectio
         squareFeet: value,
       })
       
-      // Update width and length to maintain the ratio
+      // Update width and length based on new square footage
       if (value > 0) {
         const currentArea = width * length;
-        const ratio = Math.sqrt(value / currentArea);
-        setWidth(width * ratio);
-        setLength(length * ratio);
+        // If current area is 0, set equal dimensions
+        if (currentArea <= 0) {
+          const newDimension = Math.sqrt(value);
+          setWidth(newDimension);
+          setLength(newDimension);
+        } else {
+          // Otherwise maintain ratio
+          const ratio = Math.sqrt(value / currentArea);
+          setWidth(width * ratio);
+          setLength(length * ratio);
+        }
+      } else {
+        // If new area is 0, set width and length to 0
+        setWidth(0);
+        setLength(0);
       }
     }
   }
