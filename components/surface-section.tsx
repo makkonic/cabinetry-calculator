@@ -15,18 +15,20 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { NumberFlowSlider } from "@/components/ui/number-flow-slider"
 import NumberFlow from '@number-flow/react'
+import { getDisplayName } from "@/lib/utils"
+import { Switch } from "@/components/ui/switch"
 
 interface SurfaceSectionProps {
-  surface: SurfaceConfig
-  onChange: (surface: SurfaceConfig) => void
+  surface: SurfaceConfig & { enabled?: boolean }
+  onChange: (surface: SurfaceConfig & { enabled?: boolean }) => void
   pricingData: SurfacePricing[]
 }
 
 export function SurfaceSection({ surface, onChange, pricingData }: SurfaceSectionProps) {
-  const [price, setPrice] = useState(0)
-  const [width, setWidth] = useState(0) // Initialize to 0 instead of 1
-  const [length, setLength] = useState(0) // Initialize to 0 instead of 1
-  const [initialized, setInitialized] = useState(false); // Flag for initialization
+  const [price, setPrice] = useState<number>(0)
+  const [width, setWidth] = useState<number>(0)
+  const [length, setLength] = useState<number>(0)
+  const [initialized, setInitialized] = useState(false)
   
   const materials = ["laminate", "fenix", "porcelain", "quartz", "stainless", "glass_matte", "granite"]
   const materialLabels: Record<string, string> = {
@@ -158,18 +160,40 @@ export function SurfaceSection({ surface, onChange, pricingData }: SurfaceSectio
   }
 
   const handleMaterialChange = (value: string) => {
-    onChange({
-      ...surface,
-      material: value as any,
-    })
+    if (materials.includes(value as any)) {
+      onChange({
+        ...surface,
+        material: value as typeof surface.material
+      })
+    }
   }
 
-  const displayName = `${surface.name} (${surface.area.replace('kitchen-surfaces', 'kitchen').replace('kitchen-surface', 'kitchen')})`
+  const displayName = getDisplayName(surface.name)
+  const materialDisplay = materialLabels[surface.material] || surface.material
 
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-lg">{displayName}</CardTitle>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="text-lg">{displayName}</CardTitle>
+            <CardDescription className="text-sm text-muted-foreground">
+              {materialDisplay}
+            </CardDescription>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Label htmlFor={`${surface.name}-enabled`} className="mr-2">
+              {surface.enabled ? 'Enabled' : 'Disabled'}
+            </Label>
+            <Switch
+              id={`${surface.name}-enabled`}
+              checked={surface.enabled}
+              onCheckedChange={(checked) => {
+                onChange({ ...surface, enabled: checked })
+              }}
+            />
+          </div>
+        </div>
         {!pricing && (
           <div className="text-sm text-red-500">
             No pricing data found for this surface configuration
@@ -177,96 +201,101 @@ export function SurfaceSection({ surface, onChange, pricingData }: SurfaceSectio
         )}
       </CardHeader>
       <CardContent>
-        <div className="space-y-6">
-          <div>
-            <Label className="mb-2 block">Material</Label>
-            <Select value={surface.material} onValueChange={handleMaterialChange}>
-              <SelectTrigger id={`${surface.name}-material`}>
-                <SelectValue placeholder="Select material" />
-              </SelectTrigger>
-              <SelectContent>
-                {materials.map((material) => (
-                  <SelectItem key={material} value={material}>
-                    {materialLabels[material]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+        {!surface.enabled ? (
+          <p className="text-sm text-muted-foreground">Enable this surface to configure it.</p>
+        ) : (
+          <div className="space-y-6">
+            <CardControlRow
+              sliderSection={
+                <div className="space-y-2">
+                  <Label htmlFor={`${surface.name}-sqft`}>Square Footage</Label>
+                  <NumberFlowSlider
+                    id={`${surface.name}-sqft`}
+                    value={[surface.squareFeet]}
+                    min={0}
+                    max={50}
+                    step={0.01}
+                    onValueChange={handleSquareFeetChange}
+                    unit="sqft"
+                  />
+                </div>
+              }
+              dropdownSection={
+                <div className="space-y-2">
+                  <Label htmlFor={`${surface.name}-material`}>Material</Label>
+                  <Select value={surface.material} onValueChange={handleMaterialChange}>
+                    <SelectTrigger id={`${surface.name}-material`}>
+                      <SelectValue placeholder="Select material" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {materials.map((material) => (
+                        <SelectItem key={material} value={material}>
+                          {materialLabels[material]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              }
+              numberSection={
+                <div className="space-y-2">
+                  <Label htmlFor={`${surface.name}-sqft-input`}>SQFT</Label>
+                  <Input
+                    id={`${surface.name}-sqft-input`}
+                    type="number"
+                    value={surface.squareFeet}
+                    onChange={handleSquareFeetInputChange}
+                    min={0}
+                    step={0.01}
+                    className="text-right"
+                  />
+                </div>
+              }
+            />
 
-          <CardControlRow
-            sliderSection={
+            <div className="grid grid-cols-2 gap-4 mt-2">
               <div className="space-y-2">
-                <Label htmlFor={`${surface.name}-sqft`}>Square Footage</Label>
-                <NumberFlowSlider
-                  id={`${surface.name}-sqft`}
-                  value={[surface.squareFeet]}
-                  min={0}
-                  max={50}
-                  step={0.01}
-                  onValueChange={handleSquareFeetChange}
-                  unit="sqft"
-                />
-              </div>
-            }
-            numberSection={
-              <div className="space-y-2">
-                <Label htmlFor={`${surface.name}-sqft-input`}>SQFT</Label>
+                <Label htmlFor={`${surface.name}-width`}>Width (ft)</Label>
                 <Input
-                  id={`${surface.name}-sqft-input`}
+                  id={`${surface.name}-width`}
                   type="number"
-                  value={surface.squareFeet}
-                  onChange={handleSquareFeetInputChange}
+                  value={width}
+                  onChange={handleWidthChange}
                   min={0}
                   step={0.01}
                   className="text-right"
                 />
               </div>
-            }
-          />
-
-          <div className="grid grid-cols-2 gap-4 mt-2">
-            <div className="space-y-2">
-              <Label htmlFor={`${surface.name}-width`}>Width (ft)</Label>
-              <Input
-                id={`${surface.name}-width`}
-                type="number"
-                value={width}
-                onChange={handleWidthChange}
-                min={0}
-                step={0.01}
-                className="text-right"
-              />
+              <div className="space-y-2">
+                <Label htmlFor={`${surface.name}-length`}>Length (ft)</Label>
+                <Input
+                  id={`${surface.name}-length`}
+                  type="number"
+                  value={length}
+                  onChange={handleLengthChange}
+                  min={0}
+                  step={0.01}
+                  className="text-right"
+                />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor={`${surface.name}-length`}>Length (ft)</Label>
-              <Input
-                id={`${surface.name}-length`}
-                type="number"
-                value={length}
-                onChange={handleLengthChange}
-                min={0}
-                step={0.01}
-                className="text-right"
+
+            <div className="mt-4 text-right">
+              <div className="text-sm text-muted-foreground">Price</div>
+              <NumberFlow 
+                value={price}
+                format={{ 
+                  style: 'currency', 
+                  currency: 'USD',
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2
+                }}
+                transformTiming={{ duration: 500, easing: 'ease-out' }}
+                className="text-xl font-bold"
               />
             </div>
           </div>
-        </div>
-
-        <div className="mt-4 text-right">
-          <div className="text-sm text-muted-foreground">Price</div>
-          <NumberFlow 
-            value={price}
-            format={{ 
-              style: 'currency', 
-              currency: 'USD',
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2
-            }}
-            transformTiming={{ duration: 500, easing: 'ease-out' }}
-            className="text-xl font-bold"
-          />
-        </div>
+        )}
       </CardContent>
     </Card>
   )

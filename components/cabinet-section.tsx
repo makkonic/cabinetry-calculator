@@ -17,6 +17,7 @@ import { LinearMeasurement } from "@/components/measurements/linear-measurement"
 import { QuantityMeasurement } from "@/components/measurements/quantity-measurement"
 import { NumberFlowSlider } from "@/components/ui/number-flow-slider"
 import NumberFlow from '@number-flow/react';
+import { getDisplayName } from "@/lib/utils"
 
 interface CabinetSectionProps {
   cabinet: CabinetConfig
@@ -154,12 +155,15 @@ export function CabinetSection({ cabinet, onChange, pricingData }: CabinetSectio
   // Render even if pricing is not found
   const isLinearMeasurement = cabinet.measurement_type === "Linear FT"
   const isSqftMeasurement = cabinet.measurement_type === "Per SQFT"
-  const displayName = `${cabinet.name} - ${cabinet.handle_type}`
+  const displayName = getDisplayName(cabinet.name)
 
   return (
     <Card>
       <CardHeader className="pb-2">
         <CardTitle className="text-lg">{displayName}</CardTitle>
+        <CardDescription className="text-sm text-muted-foreground">
+          {cabinet.handle_type}
+        </CardDescription>
         {!pricing && (
           <div className="text-sm text-red-500">
             No pricing data found for this cabinet configuration
