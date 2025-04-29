@@ -286,7 +286,151 @@ export function AddonSection({
   
   // Format the measurement type for display
   const measurementTypeDisplay = addon.measurement_type.split('_').map(word => word.charAt(0) + word.slice(1).toLowerCase()).join(' ')
+  
+  // Calculate the number of transformers needed for LED Lighting
+  const isLEDLighting = addon.name === "LED Lighting";
+  const transformerQuantity = isLEDLighting ? Math.ceil((addon.linearFeet || 0) / 3) : 0;
+  
+  // Calculate transformer price if this is LED lighting
+  const transformerPricing = isLEDLighting 
+    ? pricingData.find(p => p.name === "Transformer" && p.area === addon.area) 
+    : null;
+  
+  const transformerPrice = transformerPricing 
+    ? (transformerPricing.price || 0) * transformerQuantity  // Use the price field directly
+    : 0;
 
+  // Special card for LED Lighting to group it with Transformer
+  if (isLEDLighting) {
+    return (
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-lg">Lighting Components</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-6">
+            {/* LED Lighting */}
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center space-x-2">
+                  <Switch 
+                    id={`${addon.name}-toggle`}
+                    checked={enabled}
+                    onCheckedChange={handleToggle}
+                  />
+                  <Label htmlFor={`${addon.name}-toggle`} className="font-medium">
+                    LED Lighting
+                  </Label>
+                </div>
+                {enabled && (
+                  <div className="text-sm text-right font-medium text-primary">
+                    ${price.toFixed(2)}
+                  </div>
+                )}
+              </div>
+              
+              {enabled && (
+                <div className="space-y-4 ml-7">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor={`${addon.name}-measurement`}>
+                      Linear Feet
+                    </Label>
+                    <Input
+                      id={`${addon.name}-measurement-input`}
+                      type="number"
+                      value={addon.linearFeet || 0}
+                      onChange={handleLinearFeetInputChange}
+                      className="w-20 text-right"
+                      min={0}
+                      step={0.01}
+                    />
+                  </div>
+                  <NumberFlowSlider
+                    id={`${addon.name}-measurement`}
+                    value={[addon.linearFeet || 0]}
+                    min={0}
+                    max={100}
+                    step={0.01}
+                    onValueChange={handleLinearFeetChange}
+                    unit="ft"
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Transformer Section */}
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center space-x-2">
+                  <div className="w-6 h-6 flex items-center justify-center">
+                    {enabled && transformerQuantity > 0 ? (
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
+                        className="w-5 h-5 text-green-500"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                    ) : (
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
+                        className="w-5 h-5 text-gray-300"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M10 18a8 8 0 100-16 8 8 0 000 16zm-1.414-8.414a.75.75 0 01.707-.707h2.414a.75.75 0 010 1.5h-2.414a.75.75 0 01-.707-.793z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                    )}
+                  </div>
+                  <Label className="font-medium text-gray-700">
+                    Transformers
+                  </Label>
+                </div>
+                {enabled && transformerQuantity > 0 && (
+                  <div className="text-sm text-right font-medium text-primary">
+                    ${transformerPrice.toFixed(2)}
+                  </div>
+                )}
+              </div>
+              
+              {enabled && transformerQuantity > 0 && (
+                <div className="ml-7 p-3 bg-gray-50 rounded-md">
+                  <div className="text-sm">
+                    <span className="font-semibold">{transformerQuantity}</span> transformer{transformerQuantity > 1 ? 's' : ''} 
+                    automatically added (1 per 3 feet of LED)
+                    {transformerQuantity > 1 && transformerPricing?.price && (
+                      <div className="mt-1 text-gray-500 text-xs">
+                        ${transformerPricing.price.toFixed(2)} each
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Total Price */}
+            <div className="mt-4 text-right">
+              <div className="text-sm text-gray-500">Total Lighting Price</div>
+              <div className="text-xl font-bold">
+                ${(price + transformerPrice).toFixed(2)}
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Default card for other addons
   return (
     <Card>
       <CardHeader className="pb-2">

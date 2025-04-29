@@ -379,7 +379,7 @@ export function CabinetSection({ cabinet, onChange, pricingData }: CabinetSectio
 
           {pricing && pricing.str_addon > 0 && (
             <div className="mt-6 pt-4 border-t">
-              <h4 className="font-medium mb-2">Finish Upgrade</h4>
+              <h4 className="font-medium mb-2">Structure Upgrade</h4>
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">

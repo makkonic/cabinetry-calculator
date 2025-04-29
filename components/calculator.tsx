@@ -252,11 +252,6 @@ export function Calculator() {
     // Create addon configs from the pricing data
     console.log("All addon data from database:", addonsData);
     return addonsData.map(addon => {
-      // Skip transformer as it's handled as a dependent of LED lighting
-      if (addon.name === "Transformer" && addon.area === "kitchen") {
-        return null;
-      }
-      
       // Create the base addon config
       const addonConfig: AddonConfig = {
         id: addon.id,
@@ -402,26 +397,37 @@ export function Calculator() {
     if (ledLinearFeet !== prevLedFeetRef.current) {
       prevLedFeetRef.current = ledLinearFeet;
       
-      if (ledLinearFeet > 0) {
-        const transformerQuantity = Math.ceil(ledLinearFeet / 3);
+      setAddons((prev) => {
+        // Find transformer in previous state
+        const transformerIndex = prev.findIndex(addon => addon.name === "Transformer");
         
-        setAddons((prev) => {
-          // Find transformer in previous state
-          const transformerIndex = prev.findIndex(addon => addon.name === "Transformer");
+        if (transformerIndex >= 0) {
+          const updated = [...prev];
           
-          // Only update if transformer exists and quantity changed
-          if (transformerIndex >= 0 && prev[transformerIndex].quantity !== transformerQuantity) {
-            const updated = [...prev];
+          if (ledLinearFeet > 0) {
+            // Calculate transformers needed (1 per 3 feet)
+            const transformerQuantity = Math.ceil(ledLinearFeet / 3);
+            
+            // Update transformer with quantity and enabled status
             updated[transformerIndex] = { 
               ...updated[transformerIndex], 
-              quantity: transformerQuantity 
+              quantity: transformerQuantity,
+              enabled: true // Ensure it's enabled when LED lighting is used
             };
-            return updated;
+          } else {
+            // No LED footage, set transformer to 0 and disabled
+            updated[transformerIndex] = {
+              ...updated[transformerIndex],
+              quantity: 0,
+              enabled: false // Disable when no LED lighting
+            };
           }
           
-          return prev;
-        });
-      }
+          return updated;
+        }
+        
+        return prev;
+      });
     }
   }, [addons]); // Keep addons dependency, but use ref to avoid infinite loops
 
@@ -640,7 +646,7 @@ export function Calculator() {
 
                     <h2 className="text-lg font-semibold mb-3 pt-4">Kitchen Add-ons</h2>
                     {addons
-                      .filter((addon) => addon.name !== "Transformer" && addon.area.toLowerCase() === "kitchen")
+                      .filter((addon) => addon.area.toLowerCase() === "kitchen")
                       .map((addon, index) => {
                         const addonIndex = addons.findIndex(a => a.name === addon.name && a.area === addon.area);
                         return (
@@ -676,7 +682,7 @@ export function Calculator() {
                     
                     <h2 className="text-lg font-semibold mb-3 pt-4">Surface Add-ons</h2>
                     {addons
-                      .filter((addon) => addon.name !== "Transformer" && (addon.area.toLowerCase() === "kitchen-surfaces" || addon.area.toLowerCase() === "kitchen-surface"))
+                      .filter((addon) => (addon.area.toLowerCase() === "kitchen-surfaces" || addon.area.toLowerCase() === "kitchen-surface"))
                       .map((addon, index) => {
                         const addonIndex = addons.findIndex(a => a.name === addon.name && a.area === addon.area);
                         return (

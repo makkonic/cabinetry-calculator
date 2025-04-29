@@ -385,51 +385,108 @@ export function calculateTotalPrice(
       continue;
     }
     
-    const price = calculateAddonPrice(addon, addonPricing, addonDependencies)
-    if (price > 0) {
-      addonsTotal += price;
-      items.push({
-        name: `${addon.name} (${addon.area})`,
-        price,
-      })
+    // Calculate price - handling LED lighting and transformers specially
+    let price = 0;
+    
+    if (addon.name === "LED Lighting") {
+      // For LED Lighting, calculate the price WITHOUT dependency calculation
+      // since we'll handle transformers separately
+      const ledPricing = addonPricing.find(
+        p => p.name === addon.name &&
+             p.area === addon.area &&
+             p.measurement_type === addon.measurement_type
+      );
       
-      // If the addon has dependencies, also add them individually for display
-      if (addon.dependentAddons && addon.dependentAddons.length > 0) {
-        addon.dependentAddons.forEach(depAddon => {
-          // Skip dependent addons that are marked as not enabled
-          if (depAddon.enabled === false) {
-            return;
-          }
-          
-          const dependency = addonDependencies.find(
-            d => d.parent_addon_id === addon.id && 
-                d.dependent_addon_id === depAddon.id
-          );
-          
-          if (dependency) {
-            // Calculate the dependent addon's value (quantity or linearFeet)
-            const calculatedValue = calculateDependentAddonValue(addon, dependency);
-            
-            // Create a copy with the calculated value
-            const updatedDepAddon = {
-              ...depAddon,
-              ...(depAddon.measurement_type === "Linear FT" || depAddon.measurement_type === "Per SQFT"
-                ? { linearFeet: calculatedValue }
-                : { quantity: calculatedValue }),
-              enabled: true
-            };
-            
-            // Calculate and add the dependent addon's price
-            const depPrice = calculateAddonPrice(updatedDepAddon, addonPricing);
-            if (depPrice > 0) {
-              items.push({
-                name: `- ${depAddon.name} (${depAddon.area}) [Dependent]`,
-                price: 0, // Set to 0 since it's already included in the parent addon price
-              });
-            }
-          }
-        });
+      if (ledPricing) {
+        // Calculate just the LED price without transformers
+        price = ledPricing.price * (addon.linearFeet || 0);
       }
+      
+      if (price > 0) {
+        addonsTotal += price;
+        
+        // Add LED Lighting as a line item
+        items.push({
+          name: `LED Lighting (${addon.area})`,
+          price,
+        });
+        
+        // Calculate number of transformers needed (1 per 3 linear feet, rounded up)
+        const transformerQuantity = Math.ceil((addon.linearFeet || 0) / 3);
+        
+        // Find transformer pricing data
+        const transformerPricing = addonPricing.find(a => a.name === "Transformer" && a.area === addon.area);
+        
+        if (transformerPricing && transformerQuantity > 0) {
+          // Calculate transformer price directly using the price field from pricing data
+          const transformerPrice = transformerPricing.price * transformerQuantity;
+          
+          if (transformerPrice > 0) {
+            // Add the transformer price to the total
+            addonsTotal += transformerPrice;
+            
+            // Add as a separate line item with real price
+            items.push({
+              name: `Transformer (${transformerQuantity} needed for LED) (${addon.area})`,
+              price: transformerPrice,
+            });
+          }
+        }
+      }
+    } else if (addon.name !== "Transformer") { 
+      // For normal addons (not LED or transformers), calculate price normally
+      price = calculateAddonPrice(addon, addonPricing, addonDependencies);
+      
+      if (price > 0) {
+        addonsTotal += price;
+        
+        // Add all other addons normally except Transformer (which is handled with LED)
+        items.push({
+          name: `${addon.name} (${addon.area})`,
+          price,
+        });
+        
+        // If the addon has dependencies, also add them for display
+        if (addon.dependentAddons && addon.dependentAddons.length > 0) {
+          addon.dependentAddons.forEach(depAddon => {
+            // Skip dependent addons that are marked as not enabled
+            if (depAddon.enabled === false) {
+              return;
+            }
+            
+            const dependency = addonDependencies.find(
+              d => d.parent_addon_id === addon.id && 
+                  d.dependent_addon_id === depAddon.id
+            );
+            
+            if (dependency) {
+              // Calculate the dependent addon's value (quantity or linearFeet)
+              const calculatedValue = calculateDependentAddonValue(addon, dependency);
+              
+              // Create a copy with the calculated value
+              const updatedDepAddon = {
+                ...depAddon,
+                ...(depAddon.measurement_type === "Linear FT" || depAddon.measurement_type === "Per SQFT"
+                  ? { linearFeet: calculatedValue }
+                  : { quantity: calculatedValue }),
+                enabled: true
+              };
+              
+              // We no longer set price to 0 for dependents, but calculate the actual price
+              const depPrice = calculateAddonPrice(updatedDepAddon, addonPricing);
+              if (depPrice > 0) {
+                items.push({
+                  name: `- ${depAddon.name} (${depAddon.area}) [Dependent]`,
+                  price: depPrice, // Use actual price
+                });
+              }
+            }
+          });
+        }
+      }
+    } else {
+      // Skip standalone transformer add-ons since they will be handled automatically with LED
+      continue;
     }
   }
 
