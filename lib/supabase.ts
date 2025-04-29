@@ -46,6 +46,7 @@ export type CabinetPricing = {
   price_level_9: number
   price_level_10: number
   str_addon: number
+  sort: number | null  // New sort column
   created_at: string
   updated_at: string
 }
@@ -151,7 +152,8 @@ export async function getCabinetPricing() {
   const { data, error } = await supabase
     .from("cabinet_pricing")
     .select("*")
-    .order('created_at', { ascending: false });
+    .order('sort', { ascending: true, nullsFirst: false }) // Sort by the sort column, nulls last
+    .order('created_at', { ascending: false }); // Secondary sort by created_at if sort is equal or null
 
   if (error) {
     console.error("Error fetching cabinet pricing:", error);

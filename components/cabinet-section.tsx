@@ -154,7 +154,7 @@ export function CabinetSection({ cabinet, onChange, pricingData }: CabinetSectio
   // Render even if pricing is not found
   const isLinearMeasurement = cabinet.measurement_type === "Linear FT"
   const isSqftMeasurement = cabinet.measurement_type === "Per SQFT"
-  const displayName = `${cabinet.name} (${cabinet.area}) - ${cabinet.handle_type}`
+  const displayName = `${cabinet.name} - ${cabinet.handle_type}`
 
   return (
     <Card>

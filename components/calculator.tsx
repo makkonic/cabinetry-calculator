@@ -579,6 +579,46 @@ export function Calculator() {
                     ) : (
                       cabinets
                         .filter(cabinet => cabinet.room_name === "Kitchen" && cabinet.area !== "kitchen-island")
+                        .sort((a, b) => {
+                          // First sort by handle type to push "none" to the end
+                          const isANone = a.handle_type.toLowerCase() === "none";
+                          const isBNone = b.handle_type.toLowerCase() === "none";
+                          
+                          if (isANone && !isBNone) return 1; // A is "none", B is not, so B comes first
+                          if (!isANone && isBNone) return -1; // A is not "none", B is "none", so A comes first
+                          
+                          // Then match the order of cabinet pricing data (based on ID or matching in pricingData)
+                          const pricingA = cabinetPricing.find(p => 
+                            p.name === a.name && 
+                            p.area === a.area && 
+                            p.room_name === a.room_name && 
+                            p.measurement_type === a.measurement_type && 
+                            p.handle_type === a.handle_type
+                          );
+                          
+                          const pricingB = cabinetPricing.find(p => 
+                            p.name === b.name && 
+                            p.area === b.area && 
+                            p.room_name === b.room_name && 
+                            p.measurement_type === b.measurement_type && 
+                            p.handle_type === b.handle_type
+                          );
+                          
+                          // If we have pricing data for both, sort by ID/index in the pricing array
+                          if (pricingA && pricingB) {
+                            // Lower index in cabinetPricing means it was added more recently
+                            const indexA = cabinetPricing.indexOf(pricingA);
+                            const indexB = cabinetPricing.indexOf(pricingB);
+                            return indexA - indexB;
+                          }
+                          
+                          // If only one has pricing data, prioritize the one with data
+                          if (pricingA && !pricingB) return -1;
+                          if (!pricingA && pricingB) return 1;
+                          
+                          // Fallback to sorting by name if neither has pricing data
+                          return a.name.localeCompare(b.name);
+                        })
                         .map((cabinet, index) => {
                           const originalIndex = cabinets.findIndex(c => 
                             c.name === cabinet.name && 

@@ -6,11 +6,27 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Eye, Download, Printer } from "lucide-react"
+import type { Template } from '@pdfme/common';
+import { BLANK_PDF } from '@pdfme/common';
+import { generate } from '@pdfme/generator';
+import { text } from '@pdfme/schemas';
+
+// Quote ID prefix
+const QUOTE_PREFIX = "KCQ"; // Kitchen Calculator Quote
+
+// Generate a formatted quote ID
+function generateQuoteId(quote: Quote) {
+  // Use the database ID as the sequential number
+  // Pad with leading zeros for consistent formatting (e.g., KCQ-0001)
+  const sequentialNumber = quote.id.toString().padStart(4, '0');
+  return `${QUOTE_PREFIX}-${sequentialNumber}`;
+}
 
 export function QuotesList() {
   const [quotes, setQuotes] = useState<Quote[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null)
+  const [isPrinting, setIsPrinting] = useState(false)
 
   useEffect(() => {
     async function loadQuotes() {
@@ -31,10 +47,189 @@ export function QuotesList() {
     window.print()
   }
 
-  const handleExportPDF = () => {
-    // In a real implementation, this would generate a PDF
-    alert("PDF export functionality would be implemented here")
-  }
+  const handleExportPDF = async () => {
+    if (!selectedQuote || typeof window === "undefined") return;
+    
+    setIsPrinting(true);
+    
+    try {
+      // Generate the formatted quote ID
+      const quoteId = generateQuoteId(selectedQuote);
+      
+      const template: Template = {
+        basePdf: BLANK_PDF,
+        schemas: [
+          [
+            {
+              name: 'title',
+              type: 'text',
+              position: { x: 10, y: 10 },
+              width: 190,
+              height: 10,
+              fontSize: 16,
+              fontWeight: 'bold',
+              alignment: 'center',
+            },
+            {
+              name: 'quoteIdHeader',
+              type: 'text',
+              position: { x: 10, y: 20 },
+              width: 190,
+              height: 8,
+              fontSize: 12,
+              fontWeight: 'bold',
+              alignment: 'center',
+            },
+            {
+              name: 'customerInfo',
+              type: 'text',
+              position: { x: 10, y: 35 },
+              width: 90,
+              height: 25,
+              fontSize: 10,
+              lineHeight: 1.5,
+            },
+            {
+              name: 'quoteInfo',
+              type: 'text',
+              position: { x: 110, y: 35 },
+              width: 90,
+              height: 25,
+              fontSize: 10,
+              lineHeight: 1.5,
+              alignment: 'right',
+            },
+            {
+              name: 'itemsTitle',
+              type: 'text',
+              position: { x: 10, y: 60 },
+              width: 190,
+              height: 8,
+              fontSize: 12,
+              fontWeight: 'bold',
+            },
+            {
+              name: 'itemsContent',
+              type: 'text',
+              position: { x: 10, y: 70 },
+              width: 190,
+              height: 140,
+              fontSize: 10,
+              lineHeight: 1.3,
+            },
+            {
+              name: 'summary',
+              type: 'text',
+              position: { x: 10, y: 220 },
+              width: 190,
+              height: 40,
+              fontSize: 10,
+              lineHeight: 1.3,
+              alignment: 'right',
+            },
+            {
+              name: 'markupPrices',
+              type: 'text',
+              position: { x: 10, y: 260 },
+              width: 190,
+              height: 25,
+              fontSize: 10,
+              lineHeight: 1.3,
+            },
+            {
+              name: 'footer',
+              type: 'text',
+              position: { x: 10, y: 285 },
+              width: 190,
+              height: 8,
+              fontSize: 8,
+              alignment: 'center',
+            },
+          ],
+        ],
+      };
+
+      const customerInfo = 
+        `Customer: ${selectedQuote.customer_name}\n` +
+        `Email: ${selectedQuote.customer_email}\n` +
+        `Phone: ${selectedQuote.customer_phone}`;
+
+      const quoteDate = formatDate(selectedQuote.created_at);
+      const quoteInfo = 
+        `Quote ID: ${quoteId}\n` +
+        `Date: ${quoteDate}\n` +
+        `Total: $${selectedQuote.pricing.total.toFixed(2)}`;
+
+      let itemsContent = '';
+      const items = selectedQuote.pricing.items || [];
+      if (items.length > 0) {
+        itemsContent += 'Item'.padEnd(40) + 'Price'.padStart(15) + '\n';
+        itemsContent += ''.padEnd(55, '-') + '\n';
+        
+        items.forEach(item => {
+          const name = item.name.length > 38 ? item.name.substring(0, 35) + '...' : item.name;
+          const price = `$${item.price.toFixed(2)}`;
+          itemsContent += name.padEnd(40) + price.padStart(15) + '\n';
+        });
+      } else {
+        itemsContent = 'No items found.';
+      }
+
+      const summary = 
+        `Subtotal: $${selectedQuote.pricing.subtotal.toFixed(2)}\n` +
+        `Contingency (5%): $${selectedQuote.pricing.buffer.toFixed(2)}\n` +
+        `Tariff (10%): $${selectedQuote.pricing.tariff.toFixed(2)}\n` +
+        `Total: $${selectedQuote.pricing.total.toFixed(2)}`;
+
+      const markupPrices = 
+        `Markup Prices:\n` +
+        `Trade Price (40% Markup): $${selectedQuote.pricing.tradePrice.toFixed(2)}\n` +
+        `Retail Price 1 (100% Markup): $${selectedQuote.pricing.retailPrice1.toFixed(2)}\n` +
+        `Retail Price 2 (150% Markup): $${selectedQuote.pricing.retailPrice2.toFixed(2)}`;
+
+      const currentDate = new Date().toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+
+      const inputs = [
+        {
+          title: 'Kitchen Calculation Quote',
+          quoteIdHeader: quoteId,
+          customerInfo,
+          quoteInfo,
+          itemsTitle: 'Items',
+          itemsContent,
+          summary,
+          markupPrices,
+          footer: `Generated on ${currentDate} | This is a computer-generated document. Prices are subject to change without notice.`
+        },
+      ];
+      
+      const plugins = { text };
+      
+      const pdf = await generate({ template, inputs, plugins });
+      
+      const blob = new Blob([new Uint8Array(pdf.buffer)], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      
+      // Use the formatted quote ID in the filename
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${quoteId}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      
+      URL.revokeObjectURL(url);
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      alert("There was an error generating the PDF. Please try again.");
+    } finally {
+      setIsPrinting(false);
+    }
+  };
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
@@ -75,20 +270,25 @@ export function QuotesList() {
               Back to List
             </Button>
             <div className="flex space-x-2">
-              <Button onClick={handlePrint} variant="outline">
+              <Button onClick={handlePrint} variant="outline" disabled={isPrinting}>
                 <Printer className="w-4 h-4 mr-2" />
                 Print
               </Button>
-              <Button onClick={handleExportPDF} variant="outline">
+              <Button onClick={handleExportPDF} variant="outline" disabled={isPrinting}>
                 <Download className="w-4 h-4 mr-2" />
-                Export PDF
+                {isPrinting ? "Generating..." : "Export PDF"}
               </Button>
             </div>
           </div>
 
           <Card>
             <CardHeader>
-              <CardTitle>Quote Details</CardTitle>
+              <CardTitle className="flex justify-between items-center">
+                <span>Quote Details</span>
+                <span className="text-sm font-medium bg-primary/10 text-primary px-3 py-1 rounded-full">
+                  {generateQuoteId(selectedQuote)}
+                </span>
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
@@ -100,7 +300,9 @@ export function QuotesList() {
                     <p>{selectedQuote.customer_phone}</p>
                   </div>
                   <div>
-                    <h3 className="font-semibold">Date</h3>
+                    <h3 className="font-semibold">Quote ID</h3>
+                    <p className="font-mono">{generateQuoteId(selectedQuote)}</p>
+                    <h3 className="font-semibold mt-2">Date</h3>
                     <p>{formatDate(selectedQuote.created_at)}</p>
                   </div>
                   <div>
@@ -175,20 +377,22 @@ export function QuotesList() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-[110px] whitespace-nowrap">Quote ID</TableHead>
                   <TableHead>Customer</TableHead>
-                  <TableHead>Date</TableHead>
+                  <TableHead className="hidden md:table-cell">Date</TableHead>
                   <TableHead className="text-right">Total</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead className="text-right w-[70px]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {quotes.map((quote) => (
                   <TableRow key={quote.id}>
+                    <TableCell className="font-mono text-xs">{generateQuoteId(quote)}</TableCell>
                     <TableCell>
                       <div className="font-medium">{quote.customer_name}</div>
                       <div className="text-sm text-gray-500">{quote.customer_email}</div>
                     </TableCell>
-                    <TableCell>{formatDate(quote.created_at)}</TableCell>
+                    <TableCell className="hidden md:table-cell">{formatDate(quote.created_at)}</TableCell>
                     <TableCell className="text-right font-medium">${quote.pricing.total.toFixed(2)}</TableCell>
                     <TableCell className="text-right">
                       <Button variant="ghost" size="sm" onClick={() => handleViewQuote(quote)}>
