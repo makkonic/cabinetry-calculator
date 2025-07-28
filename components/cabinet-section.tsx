@@ -194,7 +194,7 @@ export function CabinetSection({ cabinet, onChange, pricingData }: CabinetSectio
                 }
                 numberSection={
                   <div className="space-y-2">
-                    <Label htmlFor={`${cabinet.name}-measurement-input`}>Value</Label>
+                    <Label htmlFor={`${cabinet.name}-measurement-input`}>Linear Ft</Label>
                     <Input
                       id={`${cabinet.name}-measurement-input`}
                       type="number"

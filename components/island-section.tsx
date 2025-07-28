@@ -877,7 +877,7 @@ export function IslandSection({
                 <CardControlRow
                   numberSection={
                     <div className="space-y-2">
-                      <Label htmlFor="aluminum-profiles-measurement-input">Value</Label>
+                      <Label htmlFor="aluminum-profiles-measurement-input">Linear Ft</Label>
                       <Input
                         id="aluminum-profiles-measurement-input"
                         type="number"
@@ -922,7 +922,7 @@ export function IslandSection({
                 <CardControlRow
                   numberSection={
                     <div className="space-y-2">
-                      <Label htmlFor="aluminum-toe-kicks-measurement-input">Value</Label>
+                      <Label htmlFor="aluminum-toe-kicks-measurement-input">Linear Ft</Label>
                       <Input
                         id="aluminum-toe-kicks-measurement-input"
                         type="number"
