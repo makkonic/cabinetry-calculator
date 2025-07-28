@@ -207,7 +207,7 @@ export function CabinetSection({ cabinet, onChange, pricingData }: CabinetSectio
                       }}
                       className="text-right"
                       min={0}
-                      step={0.01}
+                      step={0.1}
                     />
                   </div>
                 }
@@ -245,7 +245,7 @@ export function CabinetSection({ cabinet, onChange, pricingData }: CabinetSectio
                       onChange={handleSquareFeetInputChange}
                       className="text-right"
                       min={0}
-                      step={0.01}
+                      step={0.1}
                       disabled={useDetailedDimensions}
                     />
                   </div>
@@ -274,7 +274,7 @@ export function CabinetSection({ cabinet, onChange, pricingData }: CabinetSectio
                       onChange={handleWidthChange}
                       className="text-right"
                       min={0}
-                      step={0.01}
+                      step={0.1}
                     />
                   </div>
                   <div className="space-y-2">
@@ -286,7 +286,7 @@ export function CabinetSection({ cabinet, onChange, pricingData }: CabinetSectio
                       onChange={handleLengthChange}
                       className="text-right"
                       min={0}
-                      step={0.01}
+                      step={0.1}
                     />
                   </div>
                 </div>
@@ -369,7 +369,7 @@ export function CabinetSection({ cabinet, onChange, pricingData }: CabinetSectio
           )}
 
           <div className="mt-4 text-right">
-            <div className="text-sm text-gray-500">Price</div>
+            <div className="text-sm text-muted-foreground">Price</div>
             <NumberFlow 
               value={price} 
               format={{ 

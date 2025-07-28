@@ -511,7 +511,7 @@ export function AddonSection({
             )}
 
             <div className="mt-4 text-right">
-              <div className="text-sm text-gray-500">Price</div>
+              <div className="text-sm text-muted-foreground">Price</div>
               <NumberFlow 
                 value={price} 
                 format={{ 

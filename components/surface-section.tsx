@@ -177,14 +177,14 @@ export function SurfaceSection({ surface, onChange, pricingData }: SurfaceSectio
           <CardControlRow
             numberSection={
               <div className="space-y-2">
-                <Label htmlFor={`${surface.name}-sqft-input`}>SQFT</Label>
+                <Label htmlFor={`${surface.name}-sqft-input`}>Square Feet</Label>
                 <Input
                   id={`${surface.name}-sqft-input`}
                   type="number"
                   value={surface.squareFeet}
                   onChange={handleSquareFeetInputChange}
                   min={0}
-                  step={0.01}
+                  step={0.1}
                   className="text-right"
                   disabled={useDetailedDimensions}
                 />
@@ -213,7 +213,7 @@ export function SurfaceSection({ surface, onChange, pricingData }: SurfaceSectio
                   value={width}
                   onChange={handleWidthChange}
                   min={0}
-                  step={0.01}
+                  step={0.1}
                   className="text-right"
                 />
               </div>
@@ -225,7 +225,7 @@ export function SurfaceSection({ surface, onChange, pricingData }: SurfaceSectio
                   value={length}
                   onChange={handleLengthChange}
                   min={0}
-                  step={0.01}
+                  step={0.1}
                   className="text-right"
                 />
               </div>

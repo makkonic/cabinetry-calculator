@@ -84,8 +84,31 @@ interface Html2PdfOptions {
 }
 
 // Function to map area to category display name
-function getCategoryFromArea(area: string): string {
+function getCategoryFromArea(area: string, itemName?: string): string {
   if (!area) return "Other";
+  
+  // Check item name first for specific categorization
+  if (itemName) {
+    // LED Lighting and Transformers are always "Lighting" regardless of area
+    if (itemName.includes("LED Lighting") || itemName.includes("Transformer")) {
+      return "Lighting";
+    }
+    
+    // Island add-ons should stay in Island category
+    if (area.includes("kitchen-island") && 
+        (itemName.includes("Aluminum") || itemName.includes("Integrated Sink"))) {
+      return "Island";
+    }
+    
+    // Kitchen add-ons (non-island)
+    if (area === "kitchen" && 
+        (itemName.includes("Aluminum") || itemName.includes("Integrated Sink") || 
+         itemName.includes("Power Strip"))) {
+      return "Add-ons";
+    }
+  }
+  
+  // Then check area
   if (area.includes("kitchen-surface")) return "Surfaces";
   if (area.includes("kitchen-island")) return "Island";
   if (area === "kitchen" || area.includes("cabinet")) return "Cabinets";
@@ -151,7 +174,7 @@ export function PriceSummary({ pricingSummary }: PriceSummaryProps) {
     // Group items by category based on area
     items.forEach(item => {
       const area = item.area || getAreaFromName(item.name);
-      const category = getCategoryFromArea(area);
+      const category = getCategoryFromArea(area, item.name);
       
       if (!organized.categories[category]) {
         organized.categories[category] = {

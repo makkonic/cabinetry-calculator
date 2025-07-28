@@ -700,7 +700,7 @@ export function IslandSection({
               }
               numberSection={
                 <div className="space-y-2">
-                  <Label htmlFor="counter-top-sqft-input">SQFT</Label>
+                  <Label htmlFor="counter-top-sqft-input">Square Feet</Label>
                   <Input
                     id="counter-top-sqft-input"
                     type="number"
@@ -737,7 +737,7 @@ export function IslandSection({
                     onChange={handleCounterTopWidthChange}
                     className="text-right"
                     min={0}
-                    step={0.01}
+                    step={0.1}
                   />
                 </div>
                 <div className="space-y-2">
@@ -749,14 +749,14 @@ export function IslandSection({
                     onChange={handleCounterTopLengthChange}
                     className="text-right"
                     min={0}
-                    step={0.01}
+                    step={0.1}
                   />
                 </div>
               </div>
             )}
 
             <div className="mt-4 text-right">
-              <div className="text-sm text-gray-500">Counter Top Price</div>
+              <div className="text-sm text-muted-foreground">Counter Top Price</div>
               <div className="text-xl font-bold">${counterTopPrice.toFixed(2)}</div>
             </div>
           </div>
@@ -788,7 +788,7 @@ export function IslandSection({
               <CardControlRow
                 numberSection={
                   <div className="space-y-2">
-                    <Label htmlFor="waterfall-sqft-input">SQFT</Label>
+                    <Label htmlFor="waterfall-sqft-input">Square Feet</Label>
                     <Input
                       id="waterfall-sqft-input"
                       type="number"
@@ -825,7 +825,7 @@ export function IslandSection({
                       onChange={handleWaterfallWidthChange}
                       className="text-right"
                       min={0}
-                      step={0.01}
+                      step={0.1}
                     />
                   </div>
                   <div className="space-y-2">
@@ -837,14 +837,14 @@ export function IslandSection({
                       onChange={handleWaterfallLengthChange}
                       className="text-right"
                       min={0}
-                      step={0.01}
+                      step={0.1}
                     />
                   </div>
                 </div>
               )}
 
               <div className="mt-4 text-right">
-                <div className="text-sm text-gray-500">Waterfall Price</div>
+                <div className="text-sm text-muted-foreground">Waterfall Price</div>
                 <div className="text-xl font-bold">${waterfallPrice.toFixed(2)}</div>
               </div>
             </div>
@@ -852,10 +852,10 @@ export function IslandSection({
         )}
       </Card>
 
-      {/* Aluminum Components Card */}
+      {/* Island Add-ons Card */}
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-lg">Aluminum Components</CardTitle>
+          <CardTitle className="text-lg">Island Add-ons</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-6">
@@ -948,57 +948,52 @@ export function IslandSection({
                 />
               )}
             </div>
-          </div>
-        </CardContent>
-      </Card>
 
-      {/* Integrated Sink Card */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-lg">Integrated Sink</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center space-x-2">
-              <Switch 
-                id="integrated-sink-enabled"
-                checked={island.integratedSink?.enabled || false}
-                onCheckedChange={handleIntegratedSinkEnabledChange}
-              />
-              <Label htmlFor="integrated-sink-enabled" className="font-medium">
-                Include Integrated Sink
-              </Label>
-            </div>
-            {island.integratedSink?.enabled && (
-              <div className="text-sm text-right font-medium text-primary">
-                ${integratedSinkPrice.toFixed(2)}
-              </div>
-            )}
-          </div>
-          
-          {island.integratedSink?.enabled && (
-            <CardControlRow
-              numberSection={
-                <div className="space-y-2">
-                  <Label htmlFor="integrated-sink-quantity-input">Quantity</Label>
-                  <Input
-                    id="integrated-sink-quantity-input"
-                    type="number"
-                    value={island.integratedSink.quantity || 0}
-                    onChange={(e) => {
-                      const value = Number.parseFloat(e.target.value);
-                      if (!isNaN(value) && value >= 0) {
-                        handleIntegratedSinkQuantityChange(value);
-                      }
-                    }}
-                    className="text-right"
-                    min={0}
-                    step={1}
+            {/* Integrated Sink */}
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center space-x-2">
+                  <Switch 
+                    id="integrated-sink-enabled"
+                    checked={island.integratedSink?.enabled || false}
+                    onCheckedChange={handleIntegratedSinkEnabledChange}
                   />
+                  <Label htmlFor="integrated-sink-enabled" className="font-medium">
+                    Integrated Sink
+                  </Label>
                 </div>
-              }
-            />
-          )}
+                {island.integratedSink?.enabled && (
+                  <div className="text-sm text-right font-medium text-primary">
+                    ${integratedSinkPrice.toFixed(2)}
+                  </div>
+                )}
+              </div>
+              
+              {island.integratedSink?.enabled && (
+                <CardControlRow
+                  numberSection={
+                    <div className="space-y-2">
+                      <Label htmlFor="integrated-sink-quantity-input">Quantity</Label>
+                      <Input
+                        id="integrated-sink-quantity-input"
+                        type="number"
+                        value={island.integratedSink.quantity || 0}
+                        onChange={(e) => {
+                          const value = Number.parseFloat(e.target.value);
+                          if (!isNaN(value) && value >= 0) {
+                            handleIntegratedSinkQuantityChange(value);
+                          }
+                        }}
+                        className="text-right"
+                        min={0}
+                        step={1}
+                      />
+                    </div>
+                  }
+                />
+              )}
+            </div>
+          </div>
         </CardContent>
       </Card>
 
