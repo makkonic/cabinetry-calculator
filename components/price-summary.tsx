@@ -9,15 +9,12 @@ import { Download, Printer, CreditCard, ChevronDown } from "lucide-react"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import NumberFlow, { NumberFlowGroup } from '@number-flow/react';
 import dynamic from 'next/dynamic';
+import { useSettings } from "@/contexts/settings-context";
 // Import pdfme libraries
 import type { Template } from '@pdfme/common';
 import { BLANK_PDF } from '@pdfme/common';
 import { generate } from '@pdfme/generator';
 import { text } from '@pdfme/schemas';
-
-// Constants for calculations
-const BUFFER_RATE = 0.05; // 5% buffer
-const TARIFF_RATE = 0.10; // 10% tariff
 
 // Utility functions
 const formatCurrency = (value: number): string => {
@@ -120,11 +117,17 @@ function getDisplayName(item: PriceSummaryItem): string {
 }
 
 export function PriceSummary({ pricingSummary }: PriceSummaryProps) {
+  const { contingencyRate, tariffRate } = useSettings();
   const [activeTab, setActiveTab] = useState<string>("retail2");
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
   const [isPrinting, setIsPrinting] = useState<boolean>(false);
   const printRef = useRef<HTMLDivElement>(null);
   const isMounted = useRef<boolean>(true);
+
+  // Debug logging for rates
+  useEffect(() => {
+    console.log('PriceSummary rates updated:', { contingencyRate, tariffRate });
+  }, [contingencyRate, tariffRate]);
 
   // Use effect to handle component unmounting
   useEffect(() => {
@@ -174,8 +177,8 @@ export function PriceSummary({ pricingSummary }: PriceSummaryProps) {
     
     // Calculate final totals
     organized.subtotal = subtotal;
-    organized.buffer = subtotal * BUFFER_RATE;
-    organized.tariff = (subtotal + organized.buffer) * TARIFF_RATE;
+    organized.buffer = subtotal * contingencyRate;
+    organized.tariff = (subtotal + organized.buffer) * tariffRate;
     organized.total = subtotal + organized.buffer + organized.tariff;
     
     return organized;
@@ -323,7 +326,7 @@ export function PriceSummary({ pricingSummary }: PriceSummaryProps) {
             </span>
           </div>
           <div className="flex justify-between items-center mb-2">
-            <span className="text-sm">Contingency ({BUFFER_RATE * 100}%)</span>
+            <span className="text-sm">Contingency ({contingencyRate * 100}%)</span>
             <span className="text-sm">
               <NumberFlow 
                 value={organizedItems.buffer * multiplier} 
@@ -338,7 +341,7 @@ export function PriceSummary({ pricingSummary }: PriceSummaryProps) {
             </span>
           </div>
           <div className="flex justify-between items-center mb-4">
-            <span className="text-sm">Tariff ({TARIFF_RATE * 100}%)</span>
+            <span className="text-sm">Tariff ({tariffRate * 100}%)</span>
             <span className="text-sm">
               <NumberFlow 
                 value={organizedItems.tariff * multiplier} 
@@ -520,14 +523,14 @@ export function PriceSummary({ pricingSummary }: PriceSummaryProps) {
         maximumFractionDigits: 2
       })}\n`;
       
-      contentText += `Contingency (${BUFFER_RATE * 100}%): ${(summaryItems.buffer * multiplier).toLocaleString('en-US', { 
+      contentText += `Contingency (${contingencyRate * 100}%): ${(summaryItems.buffer * multiplier).toLocaleString('en-US', { 
         style: 'currency', 
         currency: 'USD',
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
       })}\n`;
       
-      contentText += `Tariff (${TARIFF_RATE * 100}%): ${(summaryItems.tariff * multiplier).toLocaleString('en-US', { 
+      contentText += `Tariff (${tariffRate * 100}%): ${(summaryItems.tariff * multiplier).toLocaleString('en-US', { 
         style: 'currency', 
         currency: 'USD',
         minimumFractionDigits: 2,

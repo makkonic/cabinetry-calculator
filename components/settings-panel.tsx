@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSettings } from "@/contexts/settings-context";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -22,11 +22,37 @@ export function SettingsPanel() {
   // Local state for form values
   const [localContingencyRate, setLocalContingencyRate] = useState(contingencyRate * 100);
   const [localTariffRate, setLocalTariffRate] = useState(tariffRate * 100);
+  const [isSaved, setIsSaved] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
+
+  // Update local state when context values change
+  useEffect(() => {
+    setLocalContingencyRate(contingencyRate * 100);
+    setLocalTariffRate(tariffRate * 100);
+  }, [contingencyRate, tariffRate]);
+
+  // Reset saved state when sheet opens
+  useEffect(() => {
+    if (isOpen) {
+      setIsSaved(false);
+    }
+  }, [isOpen]);
 
   // Handle saving settings
   const handleSaveSettings = () => {
+    console.log('Saving settings:', {
+      contingencyRate: localContingencyRate / 100,
+      tariffRate: localTariffRate / 100
+    });
     setContingencyRate(localContingencyRate / 100);
     setTariffRate(localTariffRate / 100);
+    setIsSaved(true);
+    
+    // Close the sheet after a short delay to show the saved feedback
+    setTimeout(() => {
+      setIsOpen(false);
+      setIsSaved(false);
+    }, 1000);
   };
 
   // Handle slider changes
@@ -50,7 +76,7 @@ export function SettingsPanel() {
   };
 
   return (
-    <Sheet>
+    <Sheet open={isOpen} onOpenChange={setIsOpen}>
       <SheetTrigger asChild>
         <Button variant="outline" size="icon" className="ml-2">
           <Settings className="h-4 w-4" />
@@ -98,8 +124,11 @@ export function SettingsPanel() {
                 </div>
               </div>
               
-              <Button onClick={handleSaveSettings} className="w-full">
-                Save Settings
+              <Button 
+                onClick={handleSaveSettings} 
+                className={`w-full ${isSaved ? 'bg-green-600 hover:bg-green-700' : ''}`}
+              >
+                {isSaved ? "Settings Saved! ✓" : "Save Settings"}
               </Button>
             </div>
           </Card>
