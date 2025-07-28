@@ -50,6 +50,8 @@ interface PriceSummaryItem {
   room_name: string;
   area?: string; // Extracted from name: "Name (area)"
   displayName?: string; // Name without area prefix
+  measurement?: string; // New field for measurement
+  quantity?: number; // New field for quantity
 }
 
 // Organized structure now uses categories instead of rooms
@@ -203,7 +205,9 @@ export function PriceSummary({ pricingSummary }: PriceSummaryProps) {
           price: item.price,
           room_name: "Kitchen", // All items go to Kitchen room
           area: area,
-          displayName: getDisplayName({name: item.name, price: item.price, room_name: "Kitchen", area})
+          displayName: getDisplayName({name: item.name, price: item.price, room_name: "Kitchen", area}),
+          measurement: item.measurement,
+          quantity: item.quantity
         });
       });
     }
@@ -276,7 +280,12 @@ export function PriceSummary({ pricingSummary }: PriceSummaryProps) {
                 <div className="space-y-3">
                   {categoryData.items.map((item, idx) => (
                     <div key={idx} className="flex justify-between items-center">
-                      <span className="text-sm">{item.displayName || item.name}</span>
+                      <div className="flex flex-col">
+                        <span className="text-sm">{item.displayName || item.name}</span>
+                        {item.measurement && (
+                          <span className="text-xs text-gray-500">{item.measurement}</span>
+                        )}
+                      </div>
                       <span className="text-sm font-medium">
                         <NumberFlow 
                           value={item.price * multiplier} 
@@ -486,7 +495,10 @@ export function PriceSummary({ pricingSummary }: PriceSummaryProps) {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2
           });
-          contentText += `${getDisplayName(item)}: ${itemPrice}\n`;
+          
+          // Include measurement information if available
+          const measurement = item.measurement ? ` (${item.measurement})` : '';
+          contentText += `${getDisplayName(item)}${measurement}: ${itemPrice}\n`;
         });
         
         const categoryTotal = (categoryData.categoryTotal * multiplier).toLocaleString('en-US', { 

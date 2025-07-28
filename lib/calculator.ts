@@ -56,6 +56,8 @@ export type PricingSummary = {
   items: {
     name: string
     price: number
+    measurement?: string // Add measurement information
+    quantity?: number // Add quantity information
   }[]
   subtotal: number
   buffer: number
@@ -326,7 +328,7 @@ export function calculateTotalPrice(
   tariffRate: number = 0.10, // Default 10%
 ): PricingSummary {
   // Prepare the pricing info for all items
-  const items: { name: string; price: number }[] = []
+  const items: { name: string; price: number; measurement?: string; quantity?: number }[] = []
   
   let subtotal = 0;
   
@@ -344,9 +346,22 @@ export function calculateTotalPrice(
     const price = calculateCabinetPrice(cabinet, cabinetPricing, cabinet.priceLevel)
     if (price > 0) {
       cabinetsTotal += price;
+      
+      // Create measurement string based on measurement type
+      let measurement = '';
+      if (cabinet.measurement_type === "Linear FT") {
+        measurement = `${cabinet.linearFeet} linear ft`;
+      } else if (cabinet.measurement_type === "Per SQFT") {
+        measurement = `${cabinet.linearFeet} sq ft`;
+      } else if (cabinet.measurement_type === "Per Piece") {
+        measurement = `${cabinet.quantity} pieces`;
+      }
+      
       items.push({
         name: `${cabinet.name} (${cabinet.area})`,
         price,
+        measurement,
+        quantity: cabinet.linearFeet || cabinet.quantity
       })
     }
   }
@@ -365,6 +380,8 @@ export function calculateTotalPrice(
       items.push({
         name: `${surface.name} - ${surface.material} (${surface.area})`,
         price,
+        measurement: `${surface.squareFeet} sq ft`,
+        quantity: surface.squareFeet
       })
     }
   }
@@ -409,6 +426,8 @@ export function calculateTotalPrice(
         items.push({
           name: `LED Lighting (${addon.area})`,
           price,
+          measurement: `${addon.linearFeet} linear ft`,
+          quantity: addon.linearFeet
         });
         
         // Calculate number of transformers needed (1 per 3 linear feet, rounded up)
@@ -429,6 +448,8 @@ export function calculateTotalPrice(
             items.push({
               name: `Transformer (${transformerQuantity} needed for LED) (${addon.area})`,
               price: transformerPrice,
+              measurement: `${transformerQuantity} pieces`,
+              quantity: transformerQuantity
             });
           }
         }
@@ -444,6 +465,10 @@ export function calculateTotalPrice(
         items.push({
           name: `${addon.name} (${addon.area})`,
           price,
+          measurement: addon.measurement_type === "Linear FT" ? `${addon.linearFeet} linear ft` :
+                      addon.measurement_type === "Per SQFT" ? `${addon.linearFeet} sq ft` :
+                      `${addon.quantity} pieces`,
+          quantity: addon.linearFeet || addon.quantity
         });
         
         // If the addon has dependencies, also add them for display
@@ -478,6 +503,10 @@ export function calculateTotalPrice(
                 items.push({
                   name: `- ${depAddon.name} (${depAddon.area}) [Dependent]`,
                   price: depPrice, // Use actual price
+                  measurement: depAddon.measurement_type === "Linear FT" ? `${calculatedValue} linear ft` :
+                              depAddon.measurement_type === "Per SQFT" ? `${calculatedValue} sq ft` :
+                              `${calculatedValue} pieces`,
+                  quantity: calculatedValue
                 });
               }
             }
@@ -506,9 +535,21 @@ export function calculateTotalPrice(
         
         const price = calculateCabinetPrice(islandCabinet, cabinetPricing, islandCabinet.priceLevel);
         if (price > 0) {
+          // Create measurement string for island cabinet
+          let measurement = '';
+          if (islandCabinet.measurement_type === "Linear FT") {
+            measurement = `${islandCabinet.linearFeet} linear ft`;
+          } else if (islandCabinet.measurement_type === "Per SQFT") {
+            measurement = `${islandCabinet.linearFeet} sq ft`;
+          } else if (islandCabinet.measurement_type === "Per Piece") {
+            measurement = `${islandCabinet.quantity} pieces`;
+          }
+          
           items.push({
             name: `${islandCabinet.name} (kitchen-island)`,
             price,
+            measurement,
+            quantity: islandCabinet.linearFeet || islandCabinet.quantity
           });
         }
       }
@@ -530,6 +571,8 @@ export function calculateTotalPrice(
         items.push({
           name: "Island Cabinet (kitchen-island)",
           price: islandCabinetPrice,
+          measurement: `${islandCabinet.linearFeet} linear ft`,
+          quantity: islandCabinet.linearFeet
         })
       }
     }
@@ -541,6 +584,8 @@ export function calculateTotalPrice(
         items.push({
           name: `Counter Top - ${config.island.counterTop.material} (kitchen-island)`,
           price: islandCounterTopPrice,
+          measurement: `${config.island.counterTop.squareFeet} sq ft`,
+          quantity: config.island.counterTop.squareFeet
         })
       }
     }
@@ -552,6 +597,8 @@ export function calculateTotalPrice(
         items.push({
           name: `Waterfall - ${config.island.waterfall.material} (kitchen-island)`,
           price: islandWaterfallPrice,
+          measurement: `${config.island.waterfall.squareFeet} sq ft`,
+          quantity: config.island.waterfall.squareFeet
         })
       }
     }
@@ -563,6 +610,8 @@ export function calculateTotalPrice(
         items.push({
           name: "Aluminum Profiles (kitchen-island)",
           price: aluminumProfilesPrice,
+          measurement: `${config.island.aluminumProfiles.linearFeet} linear ft`,
+          quantity: config.island.aluminumProfiles.linearFeet
         })
       }
     }
@@ -573,6 +622,8 @@ export function calculateTotalPrice(
         items.push({
           name: "Aluminum Toe Kicks (kitchen-island)",
           price: aluminumToeKicksPrice,
+          measurement: `${config.island.aluminumToeKicks.linearFeet} linear ft`,
+          quantity: config.island.aluminumToeKicks.linearFeet
         })
       }
     }
@@ -583,6 +634,8 @@ export function calculateTotalPrice(
         items.push({
           name: "Integrated Sink (kitchen-island)",
           price: integratedSinkPrice,
+          measurement: `${config.island.integratedSink.quantity} pieces`,
+          quantity: config.island.integratedSink.quantity
         })
       }
     }

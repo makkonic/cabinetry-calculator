@@ -163,13 +163,14 @@ export function QuotesList() {
       let itemsContent = '';
       const items = selectedQuote.pricing.items || [];
       if (items.length > 0) {
-        itemsContent += 'Item'.padEnd(40) + 'Price'.padStart(15) + '\n';
-        itemsContent += ''.padEnd(55, '-') + '\n';
+        itemsContent += 'Item'.padEnd(35) + 'Measurement'.padEnd(15) + 'Price'.padStart(15) + '\n';
+        itemsContent += ''.padEnd(65, '-') + '\n';
         
-        items.forEach(item => {
-          const name = item.name.length > 38 ? item.name.substring(0, 35) + '...' : item.name;
+        items.forEach((item: any) => {
+          const name = item.name.length > 33 ? item.name.substring(0, 30) + '...' : item.name;
+          const measurement = item.measurement || '';
           const price = `$${item.price.toFixed(2)}`;
-          itemsContent += name.padEnd(40) + price.padStart(15) + '\n';
+          itemsContent += name.padEnd(35) + measurement.padEnd(15) + price.padStart(15) + '\n';
         });
       } else {
         itemsContent = 'No items found.';
@@ -317,13 +318,15 @@ export function QuotesList() {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Item</TableHead>
+                        <TableHead>Measurement</TableHead>
                         <TableHead className="text-right">Price</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {selectedQuote.pricing.items.map((item, index) => (
+                      {selectedQuote.pricing.items.map((item: any, index: number) => (
                         <TableRow key={index}>
                           <TableCell>{item.name}</TableCell>
+                          <TableCell>{item.measurement || '-'}</TableCell>
                           <TableCell className="text-right">${item.price.toFixed(2)}</TableCell>
                         </TableRow>
                       ))}
