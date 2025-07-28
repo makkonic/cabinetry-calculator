@@ -108,6 +108,13 @@ export function Calculator() {
       measurement_type: "Linear FT",
       linearFeet: 0,
       enabled: false
+    },
+    integratedSink: {
+      name: "Integrated Sink",
+      area: "kitchen-island",
+      measurement_type: "Per Piece",
+      quantity: 0,
+      enabled: false
     }
   })
 

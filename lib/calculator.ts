@@ -628,7 +628,7 @@ export function calculateTotalPrice(
       }
     }
 
-    if (config.island.integratedSink?.quantity && config.island.integratedSink?.quantity > 0) {
+    if (config.island.integratedSink?.enabled && config.island.integratedSink?.quantity && config.island.integratedSink?.quantity > 0) {
       const integratedSinkPrice = calculateAddonPrice(config.island.integratedSink, addonPricing, addonDependencies)
       if (integratedSinkPrice > 0) {
         items.push({

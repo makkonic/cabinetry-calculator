@@ -500,14 +500,20 @@ export function IslandSection({
   const handleIntegratedSinkEnabledChange = (checked: boolean) => {
     onChange({
       ...island,
-      integratedSink: checked
-        ? {
-            name: "Integrated Sink",
-            area: "kitchen-island",
-            measurement_type: "Per Piece",
-            quantity: 1,
-          }
-        : undefined,
+      integratedSink: {
+        ...island.integratedSink!,
+        enabled: checked,
+      },
+    })
+  }
+
+  const handleIntegratedSinkQuantityChange = (value: number) => {
+    onChange({
+      ...island,
+      integratedSink: {
+        ...island.integratedSink!,
+        quantity: value,
+      },
     })
   }
 
@@ -952,7 +958,7 @@ export function IslandSection({
           <CardTitle className="text-lg">Integrated Sink</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between mb-4">
             <div className="flex items-center space-x-2">
               <Switch 
                 id="integrated-sink-enabled"
@@ -969,6 +975,30 @@ export function IslandSection({
               </div>
             )}
           </div>
+          
+          {island.integratedSink?.enabled && (
+            <CardControlRow
+              numberSection={
+                <div className="space-y-2">
+                  <Label htmlFor="integrated-sink-quantity-input">Quantity</Label>
+                  <Input
+                    id="integrated-sink-quantity-input"
+                    type="number"
+                    value={island.integratedSink.quantity || 0}
+                    onChange={(e) => {
+                      const value = Number.parseFloat(e.target.value);
+                      if (!isNaN(value) && value >= 0) {
+                        handleIntegratedSinkQuantityChange(value);
+                      }
+                    }}
+                    className="text-right"
+                    min={0}
+                    step={1}
+                  />
+                </div>
+              }
+            />
+          )}
         </CardContent>
       </Card>
 
