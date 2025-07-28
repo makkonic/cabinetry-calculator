@@ -15,6 +15,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { NumberFlowSlider } from "@/components/ui/number-flow-slider"
 import NumberFlow from '@number-flow/react'
+import { Switch } from "@/components/ui/switch"
 
 interface SurfaceSectionProps {
   surface: SurfaceConfig
@@ -27,6 +28,7 @@ export function SurfaceSection({ surface, onChange, pricingData }: SurfaceSectio
   const [width, setWidth] = useState(0) // Initialize to 0 instead of 1
   const [length, setLength] = useState(0) // Initialize to 0 instead of 1
   const [initialized, setInitialized] = useState(false); // Flag for initialization
+  const [useDetailedDimensions, setUseDetailedDimensions] = useState(false)
   
   const materials = ["laminate", "fenix", "porcelain", "quartz", "stainless", "glass_matte", "granite"]
   const materialLabels: Record<string, string> = {
@@ -106,54 +108,32 @@ export function SurfaceSection({ surface, onChange, pricingData }: SurfaceSectio
         ...surface,
         squareFeet: value,
       })
-      
-      // Update width and length based on new square footage
-      if (value > 0) {
-        const currentArea = width * length;
-        // If current area is 0, set equal dimensions
-        if (currentArea <= 0) {
-          const newDimension = Math.sqrt(value);
-          setWidth(newDimension);
-          setLength(newDimension);
-        } else {
-          // Otherwise maintain ratio
-          const ratio = Math.sqrt(value / currentArea);
-          setWidth(width * ratio);
-          setLength(length * ratio);
-        }
-      } else {
-        // If new area is 0, set width and length to 0
-        setWidth(0);
-        setLength(0);
-      }
     }
   }
 
-  // Handle width change
   const handleWidthChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newWidth = Number.parseFloat(e.target.value)
     if (!isNaN(newWidth) && newWidth >= 0) {
       setWidth(newWidth);
-      // Calculate new square footage and update
+      // Calculate new area from width and length
       const newArea = newWidth * length;
       onChange({
         ...surface,
         squareFeet: newArea,
-      });
+      })
     }
   }
 
-  // Handle length change
   const handleLengthChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newLength = Number.parseFloat(e.target.value)
     if (!isNaN(newLength) && newLength >= 0) {
       setLength(newLength);
-      // Calculate new square footage and update
+      // Calculate new area from width and length
       const newArea = width * newLength;
       onChange({
         ...surface,
         squareFeet: newArea,
-      });
+      })
     }
   }
 
@@ -195,20 +175,6 @@ export function SurfaceSection({ surface, onChange, pricingData }: SurfaceSectio
           </div>
 
           <CardControlRow
-            sliderSection={
-              <div className="space-y-2">
-                <Label htmlFor={`${surface.name}-sqft`}>Square Footage</Label>
-                <NumberFlowSlider
-                  id={`${surface.name}-sqft`}
-                  value={[surface.squareFeet]}
-                  min={0}
-                  max={50}
-                  step={0.01}
-                  onValueChange={handleSquareFeetChange}
-                  unit="sqft"
-                />
-              </div>
-            }
             numberSection={
               <div className="space-y-2">
                 <Label htmlFor={`${surface.name}-sqft-input`}>SQFT</Label>
@@ -220,37 +186,51 @@ export function SurfaceSection({ surface, onChange, pricingData }: SurfaceSectio
                   min={0}
                   step={0.01}
                   className="text-right"
+                  disabled={useDetailedDimensions}
                 />
               </div>
             }
           />
 
-          <div className="grid grid-cols-2 gap-4 mt-2">
-            <div className="space-y-2">
-              <Label htmlFor={`${surface.name}-width`}>Width (ft)</Label>
-              <Input
-                id={`${surface.name}-width`}
-                type="number"
-                value={width}
-                onChange={handleWidthChange}
-                min={0}
-                step={0.01}
-                className="text-right"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor={`${surface.name}-length`}>Length (ft)</Label>
-              <Input
-                id={`${surface.name}-length`}
-                type="number"
-                value={length}
-                onChange={handleLengthChange}
-                min={0}
-                step={0.01}
-                className="text-right"
-              />
-            </div>
+          <div className="flex items-center justify-between mt-4">
+            <Label htmlFor={`${surface.name}-detailed-toggle`} className="text-sm">
+              Enter width and length
+            </Label>
+            <Switch
+              id={`${surface.name}-detailed-toggle`}
+              checked={useDetailedDimensions}
+              onCheckedChange={setUseDetailedDimensions}
+            />
           </div>
+
+          {useDetailedDimensions && (
+            <div className="grid grid-cols-2 gap-4 mt-2">
+              <div className="space-y-2">
+                <Label htmlFor={`${surface.name}-width`}>Width (ft)</Label>
+                <Input
+                  id={`${surface.name}-width`}
+                  type="number"
+                  value={width}
+                  onChange={handleWidthChange}
+                  min={0}
+                  step={0.01}
+                  className="text-right"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor={`${surface.name}-length`}>Length (ft)</Label>
+                <Input
+                  id={`${surface.name}-length`}
+                  type="number"
+                  value={length}
+                  onChange={handleLengthChange}
+                  min={0}
+                  step={0.01}
+                  className="text-right"
+                />
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="mt-4 text-right">

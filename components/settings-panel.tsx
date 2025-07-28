@@ -69,15 +69,6 @@ export function SettingsPanel() {
               <div className="space-y-2">
                 <Label htmlFor="contingency-rate">Contingency Rate (%)</Label>
                 <div className="flex items-center space-x-2">
-                  <Slider
-                    id="contingency-slider"
-                    min={0}
-                    max={30}
-                    step={0.5}
-                    value={[localContingencyRate]}
-                    onValueChange={handleContingencyChange}
-                    className="flex-1"
-                  />
                   <Input
                     id="contingency-rate"
                     type="number"
@@ -86,7 +77,7 @@ export function SettingsPanel() {
                     step={0.5}
                     value={localContingencyRate}
                     onChange={handleContingencyInputChange}
-                    className="w-20"
+                    className="w-32"
                   />
                 </div>
               </div>
@@ -94,15 +85,6 @@ export function SettingsPanel() {
               <div className="space-y-2">
                 <Label htmlFor="tariff-rate">Tariff Rate (%)</Label>
                 <div className="flex items-center space-x-2">
-                  <Slider
-                    id="tariff-slider"
-                    min={0}
-                    max={30}
-                    step={0.5}
-                    value={[localTariffRate]}
-                    onValueChange={handleTariffChange}
-                    className="flex-1"
-                  />
                   <Input
                     id="tariff-rate"
                     type="number"
@@ -111,7 +93,7 @@ export function SettingsPanel() {
                     step={0.5}
                     value={localTariffRate}
                     onChange={handleTariffInputChange}
-                    className="w-20"
+                    className="w-32"
                   />
                 </div>
               </div>

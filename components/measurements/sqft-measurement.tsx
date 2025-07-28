@@ -5,6 +5,7 @@ import { Slider } from "@/components/ui/slider"
 import { Label } from "@/components/ui/label"
 import { NumberFlowSlider } from "@/components/ui/number-flow-slider"
 import NumberFlow from '@number-flow/react'
+import { Input } from "@/components/ui/input"
 
 interface SqftMeasurementProps {
   width: number
@@ -39,34 +40,38 @@ export function SqftMeasurement({
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <Label htmlFor={`${labelPrefix}-width-slider`} className="mb-2 block">Width (ft)</Label>
-          <div className="py-6">
-            <NumberFlowSlider
-              id={`${labelPrefix}-width-slider`}
-              value={[width]}
-              onValueChange={handleWidthSliderChange}
-              min={0}
-              max={maxValue}
-              step={0.01}
-              className="w-full"
-              unit="ft"
-            />
-          </div>
+          <Label htmlFor={`${labelPrefix}-width-input`} className="mb-2 block">Width (ft)</Label>
+          <Input
+            id={`${labelPrefix}-width-input`}
+            type="number"
+            value={width}
+            onChange={(e) => {
+              const newWidth = Number.parseFloat(e.target.value);
+              if (!isNaN(newWidth) && newWidth >= 0) {
+                onWidthChange(newWidth);
+              }
+            }}
+            className="w-full"
+            min={0}
+            step={0.01}
+          />
         </div>
         <div>
-          <Label htmlFor={`${labelPrefix}-length-slider`} className="mb-2 block">Length (ft)</Label>
-          <div className="py-6">
-            <NumberFlowSlider
-              id={`${labelPrefix}-length-slider`}
-              value={[length]}
-              onValueChange={handleLengthSliderChange}
-              min={0}
-              max={maxValue}
-              step={0.01}
-              className="w-full"
-              unit="ft"
-            />
-          </div>
+          <Label htmlFor={`${labelPrefix}-length-input`} className="mb-2 block">Length (ft)</Label>
+          <Input
+            id={`${labelPrefix}-length-input`}
+            type="number"
+            value={length}
+            onChange={(e) => {
+              const newLength = Number.parseFloat(e.target.value);
+              if (!isNaN(newLength) && newLength >= 0) {
+                onLengthChange(newLength);
+              }
+            }}
+            className="w-full"
+            min={0}
+            step={0.01}
+          />
         </div>
       </div>
       <div className="flex items-center justify-between">

@@ -41,6 +41,7 @@ export function AddonSection({
   const [enabled, setEnabled] = useState(false)
   const [width, setWidth] = useState(1) // Default width for SQFT calculation
   const [length, setLength] = useState(1) // Default length for SQFT calculation
+  const [useDetailedDimensions, setUseDetailedDimensions] = useState(false)
   
   const pricing = pricingData.find(
     (p) => 
@@ -174,17 +175,7 @@ export function AddonSection({
   const handleLinearFeetInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = Number.parseFloat(e.target.value)
     if (!isNaN(value) && value >= 0) {
-      // Recalculate dependent addons
-      const updatedDependentAddons = recalculateDependentAddons({
-        ...addon,
-        linearFeet: value,
-      });
-      
-      onChange({
-        ...addon,
-        linearFeet: value,
-        dependentAddons: updatedDependentAddons
-      })
+      onChange({ ...addon, linearFeet: value });
     }
   }
 
@@ -204,45 +195,23 @@ export function AddonSection({
 
   // Handle width change for SQFT measurement
   const handleWidthChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newWidth = Number.parseFloat(e.target.value)
+    const newWidth = Number.parseFloat(e.target.value);
     if (!isNaN(newWidth) && newWidth >= 0) {
       setWidth(newWidth);
-      // Calculate square footage (area) and update linearFeet which stores the area
+      // Calculate new area from width and length
       const newArea = newWidth * length;
-      
-      // Recalculate dependent addons
-      const updatedDependentAddons = recalculateDependentAddons({
-        ...addon,
-        linearFeet: newArea,
-      });
-      
-      onChange({
-        ...addon,
-        linearFeet: newArea,
-        dependentAddons: updatedDependentAddons
-      });
+      onChange({ ...addon, linearFeet: newArea });
     }
   }
 
   // Handle length change for SQFT measurement
   const handleLengthChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newLength = Number.parseFloat(e.target.value)
+    const newLength = Number.parseFloat(e.target.value);
     if (!isNaN(newLength) && newLength >= 0) {
       setLength(newLength);
-      // Calculate square footage (area) and update linearFeet which stores the area
+      // Calculate new area from width and length
       const newArea = width * newLength;
-      
-      // Recalculate dependent addons
-      const updatedDependentAddons = recalculateDependentAddons({
-        ...addon,
-        linearFeet: newArea,
-      });
-      
-      onChange({
-        ...addon,
-        linearFeet: newArea,
-        dependentAddons: updatedDependentAddons
-      });
+      onChange({ ...addon, linearFeet: newArea });
     }
   }
 
@@ -345,15 +314,6 @@ export function AddonSection({
                       step={0.01}
                     />
                   </div>
-                  <NumberFlowSlider
-                    id={`${addon.name}-measurement`}
-                    value={[addon.linearFeet || 0]}
-                    min={0}
-                    max={100}
-                    step={0.01}
-                    onValueChange={handleLinearFeetChange}
-                    unit="ft"
-                  />
                 </div>
               )}
             </div>
@@ -465,15 +425,6 @@ export function AddonSection({
                     step={0.01}
                   />
                 </div>
-                <NumberFlowSlider
-                  id={`${addon.name}-measurement`}
-                  value={[addon.linearFeet || 0]}
-                  min={0}
-                  max={100}
-                  step={0.01}
-                  onValueChange={handleLinearFeetChange}
-                  unit="ft"
-                />
               </div>
             )}
 
@@ -491,44 +442,49 @@ export function AddonSection({
                     className="w-20 text-right"
                     min={0}
                     step={0.01}
+                    disabled={useDetailedDimensions}
                   />
                 </div>
-                <NumberFlowSlider
-                  id={`${addon.name}-sqft`}
-                  value={[addon.linearFeet || 0]}
-                  min={0}
-                  max={100}
-                  step={0.01}
-                  onValueChange={handleLinearFeetChange}
-                  unit="sqft"
-                />
 
-                <div className="grid grid-cols-2 gap-4 mt-2">
-                  <div className="space-y-2">
-                    <Label htmlFor={`${addon.name}-width`}>Width (ft)</Label>
-                    <Input
-                      id={`${addon.name}-width`}
-                      type="number"
-                      value={width}
-                      onChange={handleWidthChange}
-                      className="text-right"
-                      min={0}
-                      step={0.01}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor={`${addon.name}-length`}>Length (ft)</Label>
-                    <Input
-                      id={`${addon.name}-length`}
-                      type="number"
-                      value={length}
-                      onChange={handleLengthChange}
-                      className="text-right"
-                      min={0}
-                      step={0.01}
-                    />
-                  </div>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor={`${addon.name}-detailed-toggle`} className="text-sm">
+                    Enter width and length
+                  </Label>
+                  <Switch
+                    id={`${addon.name}-detailed-toggle`}
+                    checked={useDetailedDimensions}
+                    onCheckedChange={setUseDetailedDimensions}
+                  />
                 </div>
+
+                {useDetailedDimensions && (
+                  <div className="grid grid-cols-2 gap-4 mt-2">
+                    <div className="space-y-2">
+                      <Label htmlFor={`${addon.name}-width`}>Width (ft)</Label>
+                      <Input
+                        id={`${addon.name}-width`}
+                        type="number"
+                        value={width}
+                        onChange={handleWidthChange}
+                        className="text-right"
+                        min={0}
+                        step={0.01}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor={`${addon.name}-length`}>Length (ft)</Label>
+                      <Input
+                        id={`${addon.name}-length`}
+                        type="number"
+                        value={length}
+                        onChange={handleLengthChange}
+                        className="text-right"
+                        min={0}
+                        step={0.01}
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 

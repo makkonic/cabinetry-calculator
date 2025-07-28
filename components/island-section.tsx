@@ -53,6 +53,8 @@ export function IslandSection({
   const [waterfallLength, setWaterfallLength] = useState(1) // Length in feet
   const [counterTopInitialized, setCounterTopInitialized] = useState(false);
   const [waterfallInitialized, setWaterfallInitialized] = useState(false);
+  const [useCounterTopDetailedDimensions, setUseCounterTopDetailedDimensions] = useState(false);
+  const [useWaterfallDetailedDimensions, setUseWaterfallDetailedDimensions] = useState(false);
 
   // Materials for surface selection with proper typing
   const materials: MaterialType[] = ["laminate", "fenix", "porcelain", "quartz", "stainless", "glass_matte", "granite"];
@@ -415,54 +417,28 @@ export function IslandSection({
 
   // Handler for direct square footage input
   const handleCounterTopAreaInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = Number.parseFloat(e.target.value)
+    const value = Number.parseFloat(e.target.value);
     if (!isNaN(value) && value >= 0) {
-      const newDimension = Math.sqrt(value);
-      setCounterTopWidth(newDimension);
-      setCounterTopLength(newDimension);
-      
-      // Find matching pricing entry
-      const counterTopPricing = surfacePricing.filter(p => 
-        p.area === "kitchen-island" && 
-        (p.name.toLowerCase().includes("counter") || p.name.toLowerCase().includes("countertop"))
-      );
-      const matchingPricing = counterTopPricing.length > 0 ? counterTopPricing[0] : null;
-      
-      onChange({ 
-        ...island, 
-        counterTop: { 
-          ...island.counterTop, 
-          ...(matchingPricing ? {
-            name: matchingPricing.name,
-            area: matchingPricing.area,
-            measurement_type: matchingPricing.measurement_type
-          } : {}),
-          squareFeet: value 
-        } 
+      onChange({
+        ...island,
+        counterTop: {
+          ...island.counterTop,
+          squareFeet: value
+        }
       });
     }
   }
 
-  const handleWaterfallAreaChange = (value: number[]) => {
-    onChange({
-      ...island,
-      waterfall: {
-        ...island.waterfall!,
-        squareFeet: value[0],
-      },
-    })
-  }
-
   const handleWaterfallAreaInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = Number.parseFloat(e.target.value)
+    const value = Number.parseFloat(e.target.value);
     if (!isNaN(value) && value >= 0) {
       onChange({
         ...island,
         waterfall: {
           ...island.waterfall!,
-          squareFeet: value,
-        },
-      })
+          squareFeet: value
+        }
+      });
     }
   }
 
@@ -536,91 +512,65 @@ export function IslandSection({
   }
 
   const handleCounterTopWidthChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newWidth = Number.parseFloat(e.target.value)
+    const newWidth = Number.parseFloat(e.target.value);
     if (!isNaN(newWidth) && newWidth >= 0) {
       setCounterTopWidth(newWidth);
-      // Calculate new square footage and update
+      // Calculate new area from width and length
       const newArea = newWidth * counterTopLength;
-      
-      // Find matching pricing entry
-      const counterTopPricing = surfacePricing.filter(p => 
-        p.area === "kitchen-island" && 
-        (p.name.toLowerCase().includes("counter") || p.name.toLowerCase().includes("countertop"))
-      );
-      const matchingPricing = counterTopPricing.length > 0 ? counterTopPricing[0] : null;
-      
       onChange({
         ...island,
         counterTop: {
           ...island.counterTop,
-          ...(matchingPricing ? {
-            name: matchingPricing.name,
-            area: matchingPricing.area,
-            measurement_type: matchingPricing.measurement_type
-          } : {}),
-          squareFeet: newArea,
-        },
+          squareFeet: newArea
+        }
       });
     }
   }
 
   const handleCounterTopLengthChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newLength = Number.parseFloat(e.target.value)
+    const newLength = Number.parseFloat(e.target.value);
     if (!isNaN(newLength) && newLength >= 0) {
       setCounterTopLength(newLength);
-      // Calculate new square footage and update
+      // Calculate new area from width and length
       const newArea = counterTopWidth * newLength;
-      
-      // Find matching pricing entry
-      const counterTopPricing = surfacePricing.filter(p => 
-        p.area === "kitchen-island" && 
-        (p.name.toLowerCase().includes("counter") || p.name.toLowerCase().includes("countertop"))
-      );
-      const matchingPricing = counterTopPricing.length > 0 ? counterTopPricing[0] : null;
-      
       onChange({
         ...island,
         counterTop: {
           ...island.counterTop,
-          ...(matchingPricing ? {
-            name: matchingPricing.name,
-            area: matchingPricing.area,
-            measurement_type: matchingPricing.measurement_type
-          } : {}),
-          squareFeet: newArea,
-        },
+          squareFeet: newArea
+        }
       });
     }
   }
 
   const handleWaterfallWidthChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newWidth = Number.parseFloat(e.target.value)
-    if (!isNaN(newWidth) && newWidth >= 0 && island.waterfall) {
+    const newWidth = Number.parseFloat(e.target.value);
+    if (!isNaN(newWidth) && newWidth >= 0) {
       setWaterfallWidth(newWidth);
-      // Calculate new square footage and update
+      // Calculate new area from width and length
       const newArea = newWidth * waterfallLength;
       onChange({
         ...island,
         waterfall: {
-          ...island.waterfall,
-          squareFeet: newArea,
-        },
+          ...island.waterfall!,
+          squareFeet: newArea
+        }
       });
     }
   }
 
   const handleWaterfallLengthChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newLength = Number.parseFloat(e.target.value)
-    if (!isNaN(newLength) && newLength >= 0 && island.waterfall) {
+    const newLength = Number.parseFloat(e.target.value);
+    if (!isNaN(newLength) && newLength >= 0) {
       setWaterfallLength(newLength);
-      // Calculate new square footage and update
+      // Calculate new area from width and length
       const newArea = waterfallWidth * newLength;
       onChange({
         ...island,
         waterfall: {
-          ...island.waterfall,
-          squareFeet: newArea,
-        },
+          ...island.waterfall!,
+          squareFeet: newArea
+        }
       });
     }
   }
@@ -728,35 +678,18 @@ export function IslandSection({
               dropdownSection={
                 <div className="space-y-2">
                   <Label htmlFor="counter-top-material">Material</Label>
-                  <Select 
-                    value={island.counterTop.material} 
-                    onValueChange={(value) => handleCounterTopMaterialChange(value as MaterialType)}
-                  >
+                  <Select value={island.counterTop.material} onValueChange={handleCounterTopMaterialChange}>
                     <SelectTrigger id="counter-top-material">
                       <SelectValue placeholder="Select material" />
                     </SelectTrigger>
                     <SelectContent>
-                      {materials.map((material) => (
+                      {Object.entries(materialLabels).map(([material, label]) => (
                         <SelectItem key={material} value={material}>
-                          {materialLabels[material]}
+                          {label}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                </div>
-              }
-              sliderSection={
-                <div className="space-y-2">
-                  <Label htmlFor="counter-top-sqft">Square Footage</Label>
-                  <NumberFlowSlider
-                    id="counter-top-sqft"
-                    value={[island.counterTop.squareFeet]}
-                    min={0}
-                    max={100}
-                    step={0.1}
-                    onValueChange={handleCounterTopSliderChange}
-                    unit="sqft"
-                  />
                 </div>
               }
               numberSection={
@@ -770,37 +703,51 @@ export function IslandSection({
                     className="text-right"
                     min={0}
                     step={0.1}
+                    disabled={useCounterTopDetailedDimensions}
                   />
                 </div>
               }
             />
 
-            <div className="grid grid-cols-2 gap-4 mt-2">
-              <div className="space-y-2">
-                <Label htmlFor="counter-top-width">Width (ft)</Label>
-                <Input
-                  id="counter-top-width"
-                  type="number"
-                  value={counterTopWidth}
-                  onChange={handleCounterTopWidthChange}
-                  className="text-right"
-                  min={0}
-                  step={0.01}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="counter-top-length">Length (ft)</Label>
-                <Input
-                  id="counter-top-length"
-                  type="number"
-                  value={counterTopLength}
-                  onChange={handleCounterTopLengthChange}
-                  className="text-right"
-                  min={0}
-                  step={0.01}
-                />
-              </div>
+            <div className="flex items-center justify-between mt-4">
+              <Label htmlFor="counter-top-detailed-toggle" className="text-sm">
+                Enter width and length
+              </Label>
+              <Switch
+                id="counter-top-detailed-toggle"
+                checked={useCounterTopDetailedDimensions}
+                onCheckedChange={setUseCounterTopDetailedDimensions}
+              />
             </div>
+
+            {useCounterTopDetailedDimensions && (
+              <div className="grid grid-cols-2 gap-4 mt-2">
+                <div className="space-y-2">
+                  <Label htmlFor="counter-top-width">Width (ft)</Label>
+                  <Input
+                    id="counter-top-width"
+                    type="number"
+                    value={counterTopWidth}
+                    onChange={handleCounterTopWidthChange}
+                    className="text-right"
+                    min={0}
+                    step={0.01}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="counter-top-length">Length (ft)</Label>
+                  <Input
+                    id="counter-top-length"
+                    type="number"
+                    value={counterTopLength}
+                    onChange={handleCounterTopLengthChange}
+                    className="text-right"
+                    min={0}
+                    step={0.01}
+                  />
+                </div>
+              </div>
+            )}
 
             <div className="mt-4 text-right">
               <div className="text-sm text-gray-500">Counter Top Price</div>
@@ -833,26 +780,6 @@ export function IslandSection({
               </div>
 
               <CardControlRow
-                sliderSection={
-                  <div className="space-y-2">
-                    <Label htmlFor="waterfall-sqft">Square Footage</Label>
-                    <NumberFlowSlider
-                      id="waterfall-sqft"
-                      value={[island.waterfall.squareFeet]}
-                      min={0}
-                      max={100}
-                      step={0.1}
-                      onValueChange={(value) => {
-                        const newArea = value[0];
-                        const newDimension = Math.sqrt(newArea);
-                        setWaterfallWidth(newDimension);
-                        setWaterfallLength(newDimension);
-                        onChange({ ...island, waterfall: { ...island.waterfall!, squareFeet: newArea } });
-                      }}
-                      unit="sqft"
-                    />
-                  </div>
-                }
                 numberSection={
                   <div className="space-y-2">
                     <Label htmlFor="waterfall-sqft-input">SQFT</Label>
@@ -860,49 +787,55 @@ export function IslandSection({
                       id="waterfall-sqft-input"
                       type="number"
                       value={island.waterfall.squareFeet}
-                      onChange={(e) => {
-                        const value = Number.parseFloat(e.target.value);
-                        if (!isNaN(value) && value >= 0) {
-                          const newDimension = Math.sqrt(value);
-                          setWaterfallWidth(newDimension);
-                          setWaterfallLength(newDimension);
-                          onChange({ ...island, waterfall: { ...island.waterfall!, squareFeet: value } });
-                        }
-                      }}
+                      onChange={handleWaterfallAreaInputChange}
                       className="text-right"
                       min={0}
                       step={0.1}
+                      disabled={useWaterfallDetailedDimensions}
                     />
                   </div>
                 }
               />
 
-              <div className="grid grid-cols-2 gap-4 mt-2">
-                <div className="space-y-2">
-                  <Label htmlFor="waterfall-width">Width (ft)</Label>
-                  <Input
-                    id="waterfall-width"
-                    type="number"
-                    value={waterfallWidth}
-                    onChange={handleWaterfallWidthChange}
-                    className="text-right"
-                    min={0}
-                    step={0.01}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="waterfall-length">Length (ft)</Label>
-                  <Input
-                    id="waterfall-length"
-                    type="number"
-                    value={waterfallLength}
-                    onChange={handleWaterfallLengthChange}
-                    className="text-right"
-                    min={0}
-                    step={0.01}
-                  />
-                </div>
+              <div className="flex items-center justify-between mt-4">
+                <Label htmlFor="waterfall-detailed-toggle" className="text-sm">
+                  Enter width and length
+                </Label>
+                <Switch
+                  id="waterfall-detailed-toggle"
+                  checked={useWaterfallDetailedDimensions}
+                  onCheckedChange={setUseWaterfallDetailedDimensions}
+                />
               </div>
+
+              {useWaterfallDetailedDimensions && (
+                <div className="grid grid-cols-2 gap-4 mt-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="waterfall-width">Width (ft)</Label>
+                    <Input
+                      id="waterfall-width"
+                      type="number"
+                      value={waterfallWidth}
+                      onChange={handleWaterfallWidthChange}
+                      className="text-right"
+                      min={0}
+                      step={0.01}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="waterfall-length">Length (ft)</Label>
+                    <Input
+                      id="waterfall-length"
+                      type="number"
+                      value={waterfallLength}
+                      onChange={handleWaterfallLengthChange}
+                      className="text-right"
+                      min={0}
+                      step={0.01}
+                    />
+                  </div>
+                </div>
+              )}
 
               <div className="mt-4 text-right">
                 <div className="text-sm text-gray-500">Waterfall Price</div>
@@ -942,20 +875,6 @@ export function IslandSection({
               
               {island.aluminumProfiles?.enabled && (
                 <CardControlRow
-                  sliderSection={
-                    <div className="space-y-2">
-                      <Label htmlFor="aluminum-profiles-measurement">Linear Feet</Label>
-                      <NumberFlowSlider
-                        id="aluminum-profiles-measurement"
-                        value={[island.aluminumProfiles.linearFeet || 0]}
-                        min={0}
-                        max={100}
-                        step={0.1}
-                        onValueChange={(val) => handleAluminumProfilesLinearFeetChange(val[0])}
-                        unit="ft"
-                      />
-                    </div>
-                  }
                   numberSection={
                     <div className="space-y-2">
                       <Label htmlFor="aluminum-profiles-measurement-input">Value</Label>
@@ -1001,20 +920,6 @@ export function IslandSection({
               
               {island.aluminumToeKicks?.enabled && (
                 <CardControlRow
-                  sliderSection={
-                    <div className="space-y-2">
-                      <Label htmlFor="aluminum-toe-kicks-measurement">Linear Feet</Label>
-                      <NumberFlowSlider
-                        id="aluminum-toe-kicks-measurement"
-                        value={[island.aluminumToeKicks.linearFeet || 0]}
-                        min={0}
-                        max={100}
-                        step={0.1}
-                        onValueChange={(val) => handleAluminumToeKicksLinearFeetChange(val[0])}
-                        unit="ft"
-                      />
-                    </div>
-                  }
                   numberSection={
                     <div className="space-y-2">
                       <Label htmlFor="aluminum-toe-kicks-measurement-input">Value</Label>

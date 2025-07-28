@@ -47,18 +47,6 @@ export function LinearMeasurement({
           step={0.01}
         />
       </div>
-      <div className="py-6">
-        <NumberFlowSlider
-          id={`${labelPrefix}-measurement`}
-          value={[value]}
-          min={0}
-          max={maxValue}
-          step={0.01}
-          onValueChange={handleSliderChange}
-          className="w-full"
-          unit="ft"
-        />
-      </div>
     </div>
   )
 } 

@@ -30,6 +30,7 @@ export function CabinetSection({ cabinet, onChange, pricingData }: CabinetSectio
   const [width, setWidth] = useState(0) // Default to 0 for SQFT calculation
   const [length, setLength] = useState(0) // Default to 0 for SQFT calculation
   const [initialized, setInitialized] = useState(false)
+  const [useDetailedDimensions, setUseDetailedDimensions] = useState(false)
   
   const pricing = pricingData.find(
     (p) => 
@@ -124,31 +125,30 @@ export function CabinetSection({ cabinet, onChange, pricingData }: CabinetSectio
 
   // Handle width change for SQFT measurement
   const handleWidthChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newWidth = Number.parseFloat(e.target.value)
+    const newWidth = Number.parseFloat(e.target.value);
     if (!isNaN(newWidth) && newWidth >= 0) {
-      console.log(`Width changed to: ${newWidth}`);
       setWidth(newWidth);
-      // Calculate square footage (area) and update linearFeet which stores the area
+      // Calculate new area from width and length
       const newArea = newWidth * length;
-      onChange({
-        ...cabinet,
-        linearFeet: newArea,
-      });
+      onChange({ ...cabinet, linearFeet: newArea });
     }
   }
 
   // Handle length change for SQFT measurement
   const handleLengthChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newLength = Number.parseFloat(e.target.value)
+    const newLength = Number.parseFloat(e.target.value);
     if (!isNaN(newLength) && newLength >= 0) {
-      console.log(`Length changed to: ${newLength}`);
       setLength(newLength);
-      // Calculate square footage (area) and update linearFeet which stores the area
+      // Calculate new area from width and length
       const newArea = width * newLength;
-      onChange({
-        ...cabinet,
-        linearFeet: newArea,
-      });
+      onChange({ ...cabinet, linearFeet: newArea });
+    }
+  }
+
+  const handleSquareFeetInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = Number.parseFloat(e.target.value);
+    if (!isNaN(value) && value >= 0) {
+      onChange({ ...cabinet, linearFeet: value });
     }
   }
 
@@ -175,20 +175,6 @@ export function CabinetSection({ cabinet, onChange, pricingData }: CabinetSectio
           {isLinearMeasurement && (
             <>
               <CardControlRow
-                sliderSection={
-                  <div className="space-y-2">
-                    <Label htmlFor={`${cabinet.name}-measurement`}>{cabinet.measurement_type}</Label>
-                    <NumberFlowSlider
-                      id={`${cabinet.name}-measurement`}
-                      value={[cabinet.linearFeet || 0]}
-                      min={0}
-                      max={100}
-                      step={0.01}
-                      onValueChange={(val) => onChange({ ...cabinet, linearFeet: val[0] })}
-                      unit="ft"
-                    />
-                  </div>
-                }
                 dropdownSection={
                   <div className="space-y-2">
                     <Label htmlFor={`${cabinet.name}-price-level`}>Price Level</Label>
@@ -232,27 +218,6 @@ export function CabinetSection({ cabinet, onChange, pricingData }: CabinetSectio
           {isSqftMeasurement && (
             <>
               <CardControlRow
-                sliderSection={
-                  <div className="space-y-2">
-                    <Label htmlFor={`${cabinet.name}-sqft`}>Square Footage</Label>
-                    <NumberFlowSlider
-                      id={`${cabinet.name}-sqft`}
-                      value={[cabinet.linearFeet || 0]}
-                      min={0}
-                      max={100}
-                      step={0.01}
-                      onValueChange={(val) => {
-                        const newArea = val[0];
-                        // Update both the state and the cabinet config
-                        const newDimension = Math.sqrt(newArea);
-                        setWidth(newDimension);
-                        setLength(newDimension);
-                        onChange({ ...cabinet, linearFeet: newArea });
-                      }}
-                      unit="sqft"
-                    />
-                  </div>
-                }
                 dropdownSection={
                   <div className="space-y-2">
                     <Label htmlFor={`${cabinet.name}-price-level`}>Price Level</Label>
@@ -272,72 +237,65 @@ export function CabinetSection({ cabinet, onChange, pricingData }: CabinetSectio
                 }
                 numberSection={
                   <div className="space-y-2">
-                    <Label htmlFor={`${cabinet.name}-sqft-input`}>SQFT</Label>
+                    <Label htmlFor={`${cabinet.name}-sqft-input`}>Square Feet</Label>
                     <Input
                       id={`${cabinet.name}-sqft-input`}
                       type="number"
                       value={cabinet.linearFeet || 0}
-                      onChange={(e) => {
-                        const value = Number.parseFloat(e.target.value);
-                        if (!isNaN(value) && value >= 0) {
-                          const newDimension = Math.sqrt(value);
-                          setWidth(newDimension);
-                          setLength(newDimension);
-                          onChange({ ...cabinet, linearFeet: value });
-                        }
-                      }}
+                      onChange={handleSquareFeetInputChange}
                       className="text-right"
                       min={0}
                       step={0.01}
+                      disabled={useDetailedDimensions}
                     />
                   </div>
                 }
               />
 
-              <div className="grid grid-cols-2 gap-4 mt-2">
-                <div className="space-y-2">
-                  <Label htmlFor={`${cabinet.name}-width`}>Width (ft)</Label>
-                  <Input
-                    id={`${cabinet.name}-width`}
-                    type="number"
-                    value={width}
-                    onChange={handleWidthChange}
-                    className="text-right"
-                    min={0}
-                    step={0.01}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor={`${cabinet.name}-length`}>Length (ft)</Label>
-                  <Input
-                    id={`${cabinet.name}-length`}
-                    type="number"
-                    value={length}
-                    onChange={handleLengthChange}
-                    className="text-right"
-                    min={0}
-                    step={0.01}
-                  />
-                </div>
+              <div className="flex items-center justify-between mt-4">
+                <Label htmlFor={`${cabinet.name}-detailed-toggle`} className="text-sm">
+                  Enter width and length
+                </Label>
+                <Switch
+                  id={`${cabinet.name}-detailed-toggle`}
+                  checked={useDetailedDimensions}
+                  onCheckedChange={setUseDetailedDimensions}
+                />
               </div>
+
+              {useDetailedDimensions && (
+                <div className="grid grid-cols-2 gap-4 mt-2">
+                  <div className="space-y-2">
+                    <Label htmlFor={`${cabinet.name}-width`}>Width (ft)</Label>
+                    <Input
+                      id={`${cabinet.name}-width`}
+                      type="number"
+                      value={width}
+                      onChange={handleWidthChange}
+                      className="text-right"
+                      min={0}
+                      step={0.01}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor={`${cabinet.name}-length`}>Length (ft)</Label>
+                    <Input
+                      id={`${cabinet.name}-length`}
+                      type="number"
+                      value={length}
+                      onChange={handleLengthChange}
+                      className="text-right"
+                      min={0}
+                      step={0.01}
+                    />
+                  </div>
+                </div>
+              )}
             </>
           )}
 
           {!isLinearMeasurement && !isSqftMeasurement && (
             <CardControlRow
-              sliderSection={
-                <div className="space-y-2">
-                  <Label htmlFor={`${cabinet.name}-quantity-slider`}>Quantity</Label>
-                  <NumberFlowSlider
-                    id={`${cabinet.name}-quantity-slider`}
-                    value={[cabinet.quantity || 0]}
-                    min={0}
-                    max={20}
-                    step={1}
-                    onValueChange={(val) => onChange({ ...cabinet, quantity: val[0] })}
-                  />
-                </div>
-              }
               dropdownSection={
                 <div className="space-y-2">
                   <Label htmlFor={`${cabinet.name}-price-level`}>Price Level</Label>
