@@ -307,7 +307,7 @@ export function PriceSummary({ pricingSummary }: PriceSummaryProps) {
                   {categoryData.items.map((item, idx) => (
                     <div key={idx} className="flex justify-between items-center">
                       <div className="flex flex-col">
-                        <span className="text-sm">{item.displayName || item.name}</span>
+                      <span className="text-sm">{item.displayName || item.name}</span>
                         {item.measurement && (
                           <span className="text-xs text-gray-500">{item.measurement}</span>
                         )}
@@ -437,67 +437,96 @@ export function PriceSummary({ pricingSummary }: PriceSummaryProps) {
         basePdf: BLANK_PDF,
         schemas: [
           [
+            // Header background (simulated with line)
+            {
+              name: 'headerLine',
+              type: 'text',
+              position: { x: 10, y: 8 },
+              width: 190,
+              height: 2,
+              fontSize: 20,
+              fontWeight: 'bold',
+              alignment: 'center',
+              fontColor: '#000000',
+            },
             // Title
             {
               name: 'title',
               type: 'text',
-              position: { x: 10, y: 10 },
+              position: { x: 10, y: 15 },
               width: 190,
-              height: 10,
-              fontSize: 16,
+              height: 12,
+              fontSize: 18,
               fontWeight: 'bold',
               alignment: 'center',
+              fontColor: '#1f2937',
             },
-            // Subtitle - current price level
+            // Subtitle - pricing type
             {
               name: 'subtitle',
               type: 'text',
-              position: { x: 10, y: 25 },
+              position: { x: 10, y: 30 },
               width: 190,
               height: 8,
               fontSize: 12,
               alignment: 'center',
+              fontColor: '#6b7280',
             },
             // Date
             {
               name: 'date',
               type: 'text',
-              position: { x: 10, y: 35 },
+              position: { x: 10, y: 40 },
               width: 190,
-              height: 8,
-              fontSize: 10,
+              height: 6,
+              fontSize: 9,
               alignment: 'center',
+              fontColor: '#9ca3af',
             },
-            // Content area
+            // Content area with better formatting
             {
               name: 'content',
               type: 'text',
-              position: { x: 10, y: 50 },
-              width: 190,
-              height: 200,
-              fontSize: 10,
-              lineHeight: 1.5,
+              position: { x: 15, y: 55 },
+              width: 180,
+              height: 180,
+              fontSize: 9,
+              lineHeight: 1.4,
+              fontColor: '#374151',
             },
-            // Total
+            // Summary section
+            {
+              name: 'summarySection',
+              type: 'text',
+              position: { x: 15, y: 240 },
+              width: 180,
+              height: 25,
+              fontSize: 9,
+              lineHeight: 1.3,
+              fontColor: '#374151',
+            },
+            // Total amount (highlighted)
             {
               name: 'total',
               type: 'text',
-              position: { x: 10, y: 260 },
-              width: 190,
+              position: { x: 15, y: 270 },
+              width: 180,
               height: 10,
-              fontSize: 12,
+              fontSize: 14,
               fontWeight: 'bold',
               alignment: 'right',
+              fontColor: '#1f2937',
             },
             // Footer
             {
               name: 'footer',
               type: 'text',
-              position: { x: 10, y: 280 },
+              position: { x: 10, y: 285 },
               width: 190,
-              height: 8,
-              fontSize: 8,
+              height: 6,
+              fontSize: 7,
               alignment: 'center',
+              fontColor: '#9ca3af',
             },
           ],
         ],
@@ -506,14 +535,35 @@ export function PriceSummary({ pricingSummary }: PriceSummaryProps) {
       // Format content for PDF
       const multiplier = getMultiplierForTab(activeTab);
       let contentText = '';
+      let summaryText = '';
       
-      // Format categories and items
-      Object.keys(summaryItems.categories).forEach(categoryName => {
+      // Define category order to match app
+      const categoryOrder = ["Cabinets", "Surfaces", "Island", "Add-ons", "Lighting", "Other"];
+      const sortedCategoryNames = Object.keys(summaryItems.categories).sort((a, b) => {
+        return categoryOrder.indexOf(a) - categoryOrder.indexOf(b);
+      });
+      
+      // Format categories and items with better styling
+      sortedCategoryNames.forEach((categoryName, index) => {
         const categoryData = summaryItems.categories[categoryName];
         
-        contentText += `${formatCategoryDisplay(categoryName)}\n`;
-        contentText += '----------------------------------------\n';
+        // Add spacing between categories (except first)
+        if (index > 0) {
+          contentText += '\n';
+        }
         
+        // Category header with total
+        const categoryTotal = (categoryData.categoryTotal * multiplier).toLocaleString('en-US', { 
+          style: 'currency', 
+          currency: 'USD',
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2
+        });
+        
+        contentText += `${formatCategoryDisplay(categoryName).toUpperCase()}${' '.repeat(Math.max(1, 35 - formatCategoryDisplay(categoryName).length))}${categoryTotal}\n`;
+        contentText += ''.padEnd(55, '-') + '\n';
+        
+        // Items in category
         categoryData.items.forEach(item => {
           const itemPrice = (item.price * multiplier).toLocaleString('en-US', { 
             style: 'currency', 
@@ -522,38 +572,38 @@ export function PriceSummary({ pricingSummary }: PriceSummaryProps) {
             maximumFractionDigits: 2
           });
           
-          // Include measurement information if available
+          const displayName = getDisplayName(item);
           const measurement = item.measurement ? ` (${item.measurement})` : '';
-          contentText += `${getDisplayName(item)}${measurement}: ${itemPrice}\n`;
+          const fullItemName = `${displayName}${measurement}`;
+          
+          // Format with proper alignment
+          const nameWidth = 38;
+          const truncatedName = fullItemName.length > nameWidth ? 
+            fullItemName.substring(0, nameWidth - 3) + '...' : 
+            fullItemName;
+          
+          contentText += `  ${truncatedName.padEnd(nameWidth)}${itemPrice.padStart(12)}\n`;
         });
         
-        const categoryTotal = (categoryData.categoryTotal * multiplier).toLocaleString('en-US', { 
-          style: 'currency', 
-          currency: 'USD',
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2
-        });
-        contentText += `Category Total: ${categoryTotal}\n\n`;
+        contentText += '\n';
       });
       
-      // Add summary totals
-      contentText += '\nSummary\n';
-      contentText += '----------------------------------------\n';
-      contentText += `Subtotal: ${(summaryItems.subtotal * multiplier).toLocaleString('en-US', { 
+      // Format summary section separately
+      summaryText += `Subtotal${' '.repeat(43)}${(summaryItems.subtotal * multiplier).toLocaleString('en-US', { 
         style: 'currency', 
         currency: 'USD',
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
       })}\n`;
       
-      contentText += `Contingency (${contingencyRate * 100}%): ${(summaryItems.buffer * multiplier).toLocaleString('en-US', { 
+      summaryText += `Contingency (${contingencyRate * 100}%)${' '.repeat(35 - (contingencyRate * 100).toString().length)}${(summaryItems.buffer * multiplier).toLocaleString('en-US', { 
         style: 'currency', 
         currency: 'USD',
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
       })}\n`;
       
-      contentText += `Tariff (${tariffRate * 100}%): ${(summaryItems.tariff * multiplier).toLocaleString('en-US', { 
+      summaryText += `Tariff (${tariffRate * 100}%)${' '.repeat(42 - (tariffRate * 100).toString().length)}${(summaryItems.tariff * multiplier).toLocaleString('en-US', { 
         style: 'currency', 
         currency: 'USD',
         minimumFractionDigits: 2,
@@ -587,11 +637,13 @@ export function PriceSummary({ pricingSummary }: PriceSummaryProps) {
       // Setup input data for the PDF
       const inputs = [
         {
+          headerLine: '================================================================================',
           title: 'Kitchen Calculation Summary',
           subtitle: priceLevel,
           date: `Generated on ${currentDate}`,
           content: contentText,
-          total: `Total: ${(summaryItems.total * multiplier).toLocaleString('en-US', { 
+          summarySection: summaryText,
+          total: `TOTAL: ${(summaryItems.total * multiplier).toLocaleString('en-US', { 
             style: 'currency', 
             currency: 'USD',
             minimumFractionDigits: 2,

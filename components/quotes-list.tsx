@@ -56,137 +56,31 @@ export function QuotesList() {
       // Generate the formatted quote ID
       const quoteId = generateQuoteId(selectedQuote);
       
-      const template: Template = {
-        basePdf: BLANK_PDF,
-        schemas: [
-          [
-            {
-              name: 'title',
-              type: 'text',
-              position: { x: 10, y: 10 },
-              width: 190,
-              height: 10,
-              fontSize: 16,
-              fontWeight: 'bold',
-              alignment: 'center',
-            },
-            {
-              name: 'quoteIdHeader',
-              type: 'text',
-              position: { x: 10, y: 20 },
-              width: 190,
-              height: 8,
-              fontSize: 12,
-              fontWeight: 'bold',
-              alignment: 'center',
-            },
-            {
-              name: 'customerInfo',
-              type: 'text',
-              position: { x: 10, y: 35 },
-              width: 90,
-              height: 25,
-              fontSize: 10,
-              lineHeight: 1.5,
-            },
-            {
-              name: 'quoteInfo',
-              type: 'text',
-              position: { x: 110, y: 35 },
-              width: 90,
-              height: 25,
-              fontSize: 10,
-              lineHeight: 1.5,
-              alignment: 'right',
-            },
-            {
-              name: 'itemsTitle',
-              type: 'text',
-              position: { x: 10, y: 60 },
-              width: 190,
-              height: 8,
-              fontSize: 12,
-              fontWeight: 'bold',
-            },
-            {
-              name: 'itemsContent',
-              type: 'text',
-              position: { x: 10, y: 70 },
-              width: 190,
-              height: 140,
-              fontSize: 10,
-              lineHeight: 1.3,
-            },
-            {
-              name: 'summary',
-              type: 'text',
-              position: { x: 10, y: 220 },
-              width: 190,
-              height: 40,
-              fontSize: 10,
-              lineHeight: 1.3,
-              alignment: 'right',
-            },
-            {
-              name: 'markupPrices',
-              type: 'text',
-              position: { x: 10, y: 260 },
-              width: 190,
-              height: 25,
-              fontSize: 10,
-              lineHeight: 1.3,
-            },
-            {
-              name: 'footer',
-              type: 'text',
-              position: { x: 10, y: 285 },
-              width: 190,
-              height: 8,
-              fontSize: 8,
-              alignment: 'center',
-            },
-          ],
-        ],
-      };
-
       const customerInfo = 
-        `Customer: ${selectedQuote.customer_name}\n` +
-        `Email: ${selectedQuote.customer_email}\n` +
-        `Phone: ${selectedQuote.customer_phone}`;
+        `${selectedQuote.customer_name}\n` +
+        `${selectedQuote.customer_email}\n` +
+        `${selectedQuote.customer_phone}`;
 
       const quoteDate = formatDate(selectedQuote.created_at);
       const quoteInfo = 
-        `Quote ID: ${quoteId}\n` +
-        `Date: ${quoteDate}\n` +
-        `Total: $${selectedQuote.pricing.total.toFixed(2)}`;
+        `${quoteId}\n` +
+        `${quoteDate}\n` +
+        `$${selectedQuote.pricing.total.toFixed(2)}`;
 
-      let itemsContent = '';
+      // Get items for pagination
       const items = selectedQuote.pricing.items || [];
-      if (items.length > 0) {
-        itemsContent += 'Item'.padEnd(35) + 'Measurement'.padEnd(15) + 'Price'.padStart(15) + '\n';
-        itemsContent += ''.padEnd(65, '-') + '\n';
-        
-        items.forEach((item: any) => {
-          const name = item.name.length > 33 ? item.name.substring(0, 30) + '...' : item.name;
-          const measurement = item.measurement || '';
-          const price = `$${item.price.toFixed(2)}`;
-          itemsContent += name.padEnd(35) + measurement.padEnd(15) + price.padStart(15) + '\n';
-        });
-      } else {
-        itemsContent = 'No items found.';
-      }
 
+      // Clean summary without excessive separators
       const summary = 
-        `Subtotal: $${selectedQuote.pricing.subtotal.toFixed(2)}\n` +
-        `Contingency (5%): $${selectedQuote.pricing.buffer.toFixed(2)}\n` +
-        `Tariff (10%): $${selectedQuote.pricing.tariff.toFixed(2)}\n` +
-        `Total: $${selectedQuote.pricing.total.toFixed(2)}`;
+        `Subtotal                          $${selectedQuote.pricing.subtotal.toFixed(2)}\n` +
+        `Contingency (5%)                  $${selectedQuote.pricing.buffer.toFixed(2)}\n` +
+        `Tariff (10%)                      $${selectedQuote.pricing.tariff.toFixed(2)}`;
 
+      // Simplified markup pricing
       const markupPrices = 
-        `Markup Prices:\n` +
-        `Trade Price (40% Markup): $${selectedQuote.pricing.tradePrice.toFixed(2)}\n` +
-        `Retail Price 1 (100% Markup): $${selectedQuote.pricing.retailPrice1.toFixed(2)}\n` +
-        `Retail Price 2 (150% Markup): $${selectedQuote.pricing.retailPrice2.toFixed(2)}`;
+        `Trade (40%): $${selectedQuote.pricing.tradePrice.toFixed(2)}  ` +
+        `Retail 1 (100%): $${selectedQuote.pricing.retailPrice1.toFixed(2)}  ` +
+        `Retail 2 (150%): $${selectedQuote.pricing.retailPrice2.toFixed(2)}`;
 
       const currentDate = new Date().toLocaleDateString('en-US', {
         year: 'numeric',
@@ -194,19 +88,334 @@ export function QuotesList() {
         day: 'numeric'
       });
 
-      const inputs = [
-        {
-          title: 'Kitchen Calculation Quote',
-          quoteIdHeader: quoteId,
-          customerInfo,
-          quoteInfo,
-          itemsTitle: 'Items',
-          itemsContent,
-          summary,
-          markupPrices,
-          footer: `Generated on ${currentDate} | This is a computer-generated document. Prices are subject to change without notice.`
-        },
-      ];
+      // Calculate pagination - items per page based on available space
+      const itemsPerPage = 15; // Conservative estimate for page 1
+      const itemsPerPageSubsequent = 25; // More items on subsequent pages
+      const totalItems = items.length;
+      const needsMultiplePages = totalItems > itemsPerPage;
+      
+      // Split items across pages if needed
+      const pageItems = [];
+      if (totalItems <= itemsPerPage) {
+        pageItems.push(items);
+      } else {
+        pageItems.push(items.slice(0, itemsPerPage));
+        let remainingItems = items.slice(itemsPerPage);
+        while (remainingItems.length > 0) {
+          pageItems.push(remainingItems.slice(0, itemsPerPageSubsequent));
+          remainingItems = remainingItems.slice(itemsPerPageSubsequent);
+        }
+      }
+
+      // Create schemas for each page
+      const schemas = pageItems.map((pageItemList, pageIndex) => {
+        const isFirstPage = pageIndex === 0;
+        const isLastPage = pageIndex === pageItems.length - 1;
+        
+        let schema = [];
+        let currentY = 10;
+
+        if (isFirstPage) {
+          // Header section (only on first page)
+          schema.push(
+            // Main title
+            {
+              name: 'title',
+              type: 'text',
+              position: { x: 20, y: currentY },
+              width: 170,
+              height: 8,
+              fontSize: 20,
+              fontWeight: 'bold',
+              alignment: 'center',
+              fontColor: '#1e293b',
+            },
+            // Quote ID badge
+            {
+              name: 'quoteIdHeader',
+              type: 'text',
+              position: { x: 20, y: currentY + 12 },
+              width: 170,
+              height: 6,
+              fontSize: 12,
+              alignment: 'center',
+              fontWeight: 'bold',
+              fontColor: '#059669',
+            }
+          );
+          currentY += 35;
+
+          // Customer and Quote Info (only on first page)
+          schema.push(
+            // Customer Information Card
+            {
+              name: 'customerTitle',
+              type: 'text',
+              position: { x: 20, y: currentY },
+              width: 70,
+              height: 6,
+              fontSize: 11,
+              fontWeight: 'bold',
+              fontColor: '#374151',
+            },
+            {
+              name: 'customerInfo',
+              type: 'text',
+              position: { x: 20, y: currentY + 8 },
+              width: 70,
+              height: 15,
+              fontSize: 9,
+              lineHeight: 1.4,
+              fontColor: '#6b7280',
+            },
+            // Quote Details Card
+            {
+              name: 'quoteTitle',
+              type: 'text',
+              position: { x: 110, y: currentY },
+              width: 80,
+              height: 6,
+              fontSize: 11,
+              fontWeight: 'bold',
+              alignment: 'right',
+              fontColor: '#374151',
+            },
+            {
+              name: 'quoteInfo',
+              type: 'text',
+              position: { x: 110, y: currentY + 8 },
+              width: 80,
+              height: 15,
+              fontSize: 9,
+              lineHeight: 1.4,
+              alignment: 'right',
+              fontColor: '#6b7280',
+            }
+          );
+          currentY += 30;
+        }
+
+        // Items Section Header
+        schema.push({
+          name: 'itemsHeader',
+          type: 'text',
+          position: { x: 20, y: currentY },
+          width: 170,
+          height: 8,
+          fontSize: 14,
+          fontWeight: 'bold',
+          fontColor: '#1e293b',
+        });
+        currentY += 15;
+
+        // Table Headers with proper grid alignment
+        schema.push(
+          {
+            name: 'itemNameHeader',
+            type: 'text',
+            position: { x: 20, y: currentY },
+            width: 90,
+            height: 6,
+            fontSize: 10,
+            fontWeight: 'bold',
+            fontColor: '#6b7280',
+          },
+          {
+            name: 'measurementHeader',
+            type: 'text',
+            position: { x: 110, y: currentY },
+            width: 40,
+            height: 6,
+            fontSize: 10,
+            fontWeight: 'bold',
+            fontColor: '#6b7280',
+          },
+          {
+            name: 'priceHeader',
+            type: 'text',
+            position: { x: 150, y: currentY },
+            width: 40,
+            height: 6,
+            fontSize: 10,
+            fontWeight: 'bold',
+            fontColor: '#6b7280',
+          }
+        );
+        currentY += 12;
+
+        // Items content with proper grid alignment
+        pageItemList.forEach((item: any, index: number) => {
+          const name = item.name.length > 40 ? item.name.substring(0, 37) + '...' : item.name;
+          const measurement = item.measurement || '-';
+          const price = `$${item.price.toFixed(2)}`;
+          
+          schema.push(
+            {
+              name: `itemName_${pageIndex}_${index}`,
+              type: 'text',
+              position: { x: 20, y: currentY },
+              width: 90,
+              height: 6,
+              fontSize: 9,
+              fontColor: '#374151',
+            },
+            {
+              name: `itemMeasurement_${pageIndex}_${index}`,
+              type: 'text',
+              position: { x: 110, y: currentY },
+              width: 40,
+              height: 6,
+              fontSize: 9,
+              fontColor: '#374151',
+            },
+            {
+              name: `itemPrice_${pageIndex}_${index}`,
+              type: 'text',
+              position: { x: 150, y: currentY },
+              width: 40,
+              height: 6,
+              fontSize: 9,
+              fontColor: '#374151',
+            }
+          );
+          currentY += 10;
+        });
+
+        // Summary and total (only on last page)
+        if (isLastPage) {
+          currentY += 10; // Add some spacing
+
+          // Summary Section
+          schema.push({
+            name: 'summaryHeader',
+            type: 'text',
+            position: { x: 20, y: currentY },
+            width: 170,
+            height: 6,
+            fontSize: 12,
+            fontWeight: 'bold',
+            fontColor: '#1e293b',
+          });
+          currentY += 12;
+
+          schema.push({
+            name: 'summary',
+            type: 'text',
+            position: { x: 20, y: currentY },
+            width: 170,
+            height: 20,
+            fontSize: 9,
+            lineHeight: 1.3,
+            fontColor: '#374151',
+          });
+          currentY += 25;
+
+          // Total highlight
+          schema.push({
+            name: 'totalAmount',
+            type: 'text',
+            position: { x: 20, y: currentY },
+            width: 170,
+            height: 8,
+            fontSize: 16,
+            fontWeight: 'bold',
+            alignment: 'right',
+            fontColor: '#059669',
+          });
+          currentY += 15;
+
+          // Markup Pricing Section
+          schema.push(
+            {
+              name: 'markupHeader',
+              type: 'text',
+              position: { x: 20, y: currentY },
+              width: 170,
+              height: 6,
+              fontSize: 10,
+              fontWeight: 'bold',
+              fontColor: '#6b7280',
+            },
+            {
+              name: 'markupPrices',
+              type: 'text',
+              position: { x: 20, y: currentY + 8 },
+              width: 170,
+              height: 10,
+              fontSize: 8,
+              lineHeight: 1.3,
+              fontColor: '#6b7280',
+            }
+          );
+          currentY += 25;
+
+          // Footer
+          schema.push({
+            name: 'footer',
+            type: 'text',
+            position: { x: 20, y: currentY },
+            width: 170,
+            height: 6,
+            fontSize: 7,
+            alignment: 'center',
+            fontColor: '#9ca3af',
+          });
+        }
+
+        return schema;
+      });
+
+      const template: Template = {
+        basePdf: BLANK_PDF,
+        schemas: schemas,
+      };
+
+      // Generate inputs for each page
+      const inputs = pageItems.map((pageItemList, pageIndex) => {
+        const isFirstPage = pageIndex === 0;
+        const isLastPage = pageIndex === pageItems.length - 1;
+        
+        let pageInput: any = {};
+        
+        // Add header info only to first page
+        if (isFirstPage) {
+          pageInput.title = 'Kitchen Calculation Quote';
+          pageInput.quoteIdHeader = quoteId;
+          pageInput.customerTitle = 'Customer Information';
+          pageInput.customerInfo = customerInfo;
+          pageInput.quoteTitle = 'Quote Details';
+          pageInput.quoteInfo = quoteInfo;
+        }
+        
+        // Add items section to all pages
+        pageInput.itemsHeader = pageIndex === 0 ? 'Items' : `Items (continued)`;
+        pageInput.itemNameHeader = 'Item Name';
+        pageInput.measurementHeader = 'Measurement';
+        pageInput.priceHeader = 'Price';
+        
+        // Add individual item data
+        pageItemList.forEach((item: any, index: number) => {
+          const name = item.name.length > 40 ? item.name.substring(0, 37) + '...' : item.name;
+          const measurement = item.measurement || '-';
+          const price = `$${item.price.toFixed(2)}`;
+          
+          pageInput[`itemName_${pageIndex}_${index}`] = name;
+          pageInput[`itemMeasurement_${pageIndex}_${index}`] = measurement;
+          pageInput[`itemPrice_${pageIndex}_${index}`] = price;
+        });
+        
+        // Add summary and footer only to last page
+        if (isLastPage) {
+          pageInput.summaryHeader = 'Summary';
+          pageInput.summary = summary;
+          pageInput.totalAmount = `TOTAL: $${selectedQuote.pricing.total.toFixed(2)}`;
+          pageInput.markupHeader = 'Additional Pricing Levels';
+          pageInput.markupPrices = markupPrices;
+          pageInput.footer = `Generated on ${currentDate} | This is a computer-generated document. Prices are subject to change without notice.`;
+        }
+        
+        return pageInput;
+      });
       
       const plugins = { text };
       
