@@ -9,6 +9,7 @@ import { PriceSummary } from "./price-summary"
 import { CustomerForm } from "./customer-form"
 import { useSettings } from "@/contexts/settings-context"
 import { SettingsPanel } from "./settings-panel"
+import { PriceLevelTooltip } from "@/components/ui/price-level-tooltip"
 import {
   getCabinetPricing,
   getSurfacePricing,
@@ -569,18 +570,20 @@ export function Calculator() {
                         </div>
                         <div>
                           <Label className="mb-2 block">Default Price Level</Label>
-                          <Select value={globalPriceLevel.toString()} onValueChange={handleGlobalPriceLevelChange}>
-                            <SelectTrigger id="global-price-level">
-                              <SelectValue placeholder="Select price level" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {Array.from({ length: 11 }, (_, i) => (
-                                <SelectItem key={i} value={i.toString()}>
-                                  Level {i}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          <PriceLevelTooltip>
+                            <Select value={globalPriceLevel.toString()} onValueChange={handleGlobalPriceLevelChange}>
+                              <SelectTrigger id="global-price-level">
+                                <SelectValue placeholder="Select price level" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {Array.from({ length: 11 }, (_, i) => (
+                                  <SelectItem key={i} value={i.toString()}>
+                                    Level {i}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </PriceLevelTooltip>
                         </div>
                       </div>
                     </div>

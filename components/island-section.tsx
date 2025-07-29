@@ -17,6 +17,7 @@ import { QuantityMeasurement } from "@/components/measurements/quantity-measurem
 import { NumberFlowSlider } from "@/components/ui/number-flow-slider"
 import { Button } from "@/components/ui/button"
 import { CabinetSection } from "./cabinet-section"
+import { PriceLevelTooltip } from "@/components/ui/price-level-tooltip"
 
 // Define valid material types instead of using string
 type MaterialType = "laminate" | "fenix" | "porcelain" | "quartz" | "stainless" | "glass_matte" | "granite";
@@ -637,18 +638,20 @@ export function IslandSection({
             numberSection={
               <div className="space-y-2">
                 <Label htmlFor="island-price-level">Price Level</Label>
-                <Select value={island.priceLevel.toString()} onValueChange={handlePriceLevelChange}>
-                  <SelectTrigger id="island-price-level">
-                    <SelectValue placeholder="Select level" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Array.from({ length: 11 }, (_, i) => (
-                      <SelectItem key={i} value={i.toString()}>
-                        Level {i}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <PriceLevelTooltip>
+                  <Select value={island.priceLevel.toString()} onValueChange={handlePriceLevelChange}>
+                    <SelectTrigger id="island-price-level">
+                      <SelectValue placeholder="Select level" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Array.from({ length: 11 }, (_, i) => (
+                        <SelectItem key={i} value={i.toString()}>
+                          Level {i}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </PriceLevelTooltip>
               </div>
             }
           />

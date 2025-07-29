@@ -18,6 +18,7 @@ import { QuantityMeasurement } from "@/components/measurements/quantity-measurem
 import { NumberFlowSlider } from "@/components/ui/number-flow-slider"
 import NumberFlow from '@number-flow/react';
 import { getDisplayName } from "@/lib/utils"
+import { PriceLevelTooltip } from "@/components/ui/price-level-tooltip"
 
 interface CabinetSectionProps {
   cabinet: CabinetConfig
@@ -178,18 +179,20 @@ export function CabinetSection({ cabinet, onChange, pricingData }: CabinetSectio
                 dropdownSection={
                   <div className="space-y-2">
                     <Label htmlFor={`${cabinet.name}-price-level`}>Price Level</Label>
-                    <Select value={cabinet.priceLevel.toString()} onValueChange={handlePriceLevelChange}>
-                      <SelectTrigger id={`${cabinet.name}-price-level`}>
-                        <SelectValue placeholder="Select price level" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {Array.from({ length: 11 }, (_, i) => (
-                          <SelectItem key={i} value={i.toString()}>
-                            Level {i}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <PriceLevelTooltip>
+                      <Select value={cabinet.priceLevel.toString()} onValueChange={handlePriceLevelChange}>
+                        <SelectTrigger id={`${cabinet.name}-price-level`}>
+                          <SelectValue placeholder="Select price level" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Array.from({ length: 11 }, (_, i) => (
+                            <SelectItem key={i} value={i.toString()}>
+                              Level {i}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </PriceLevelTooltip>
                   </div>
                 }
                 numberSection={
@@ -221,18 +224,20 @@ export function CabinetSection({ cabinet, onChange, pricingData }: CabinetSectio
                 dropdownSection={
                   <div className="space-y-2">
                     <Label htmlFor={`${cabinet.name}-price-level`}>Price Level</Label>
-                    <Select value={cabinet.priceLevel.toString()} onValueChange={handlePriceLevelChange}>
-                      <SelectTrigger id={`${cabinet.name}-price-level`}>
-                        <SelectValue placeholder="Select price level" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {Array.from({ length: 11 }, (_, i) => (
-                          <SelectItem key={i} value={i.toString()}>
-                            Level {i}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <PriceLevelTooltip>
+                      <Select value={cabinet.priceLevel.toString()} onValueChange={handlePriceLevelChange}>
+                        <SelectTrigger id={`${cabinet.name}-price-level`}>
+                          <SelectValue placeholder="Select price level" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Array.from({ length: 11 }, (_, i) => (
+                            <SelectItem key={i} value={i.toString()}>
+                              Level {i}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </PriceLevelTooltip>
                   </div>
                 }
                 numberSection={
@@ -299,18 +304,20 @@ export function CabinetSection({ cabinet, onChange, pricingData }: CabinetSectio
               dropdownSection={
                 <div className="space-y-2">
                   <Label htmlFor={`${cabinet.name}-price-level`}>Price Level</Label>
-                  <Select value={cabinet.priceLevel.toString()} onValueChange={handlePriceLevelChange}>
-                    <SelectTrigger id={`${cabinet.name}-price-level`}>
-                      <SelectValue placeholder="Select price level" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Array.from({ length: 11 }, (_, i) => (
-                        <SelectItem key={i} value={i.toString()}>
-                          Level {i}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <PriceLevelTooltip>
+                    <Select value={cabinet.priceLevel.toString()} onValueChange={handlePriceLevelChange}>
+                      <SelectTrigger id={`${cabinet.name}-price-level`}>
+                        <SelectValue placeholder="Select price level" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Array.from({ length: 11 }, (_, i) => (
+                          <SelectItem key={i} value={i.toString()}>
+                            Level {i}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </PriceLevelTooltip>
                 </div>
               }
               numberSection={
