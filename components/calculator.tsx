@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback, useRef } from "react"
+import { useSearchParams } from "next/navigation"
 import { CabinetSection } from "./cabinet-section"
 import { SurfaceSection } from "./surface-section"
 import { AddonSection } from "./addon-section"
@@ -18,6 +19,8 @@ import {
   getMeasurementTypes,
   getHandleTypes,
   getRooms,
+  getQuotes,
+  updateQuote,
   type CabinetPricing,
   type SurfacePricing,
   type AddonPricing,
@@ -26,6 +29,7 @@ import {
   type MeasurementType,
   type HandleType,
   type Room,
+  type Quote,
 } from "@/lib/supabase"
 import {
   type CalculatorConfig,
@@ -45,6 +49,9 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 export function Calculator() {
+  const searchParams = useSearchParams()
+  const editQuoteId = searchParams.get('edit')
+  
   // Reference data
   const [areas, setAreas] = useState<Area[]>([])
   const [measurementTypes, setMeasurementTypes] = useState<MeasurementType[]>([])
@@ -57,6 +64,7 @@ export function Calculator() {
   const [addonPricing, setAddonPricing] = useState<AddonPricing[]>([])
   const [addonDependencies, setAddonDependencies] = useState<AddonDependency[]>([])
   const [loading, setLoading] = useState(true)
+  const [editingQuote, setEditingQuote] = useState<Quote | null>(null)
 
   const [handle_type, setHandleType] = useState<string>("Handles")
   const [globalPriceLevel, setGlobalPriceLevel] = useState<number>(0)
@@ -375,6 +383,37 @@ export function Calculator() {
       }
     }
   }, [loading, surfaces]);
+
+  // Load quote data for editing
+  useEffect(() => {
+    async function loadQuoteForEditing() {
+      if (editQuoteId && !loading) {
+        try {
+          const quotes = await getQuotes()
+          const quoteToEdit = quotes.find(q => q.id.toString() === editQuoteId)
+          
+          if (quoteToEdit) {
+            setEditingQuote(quoteToEdit)
+            
+            // Load the quote's configuration data
+            const config = quoteToEdit.configuration
+            
+            // Set cabinets, surfaces, addons, and island from the quote
+            if (config.cabinets) setCabinets(config.cabinets)
+            if (config.surfaces) setSurfaces(config.surfaces)
+            if (config.addons) setAddons(config.addons)
+            if (config.island) setIsland(config.island)
+            if (config.handle_type) setHandleType(config.handle_type)
+            if (config.globalPriceLevel !== undefined) setGlobalPriceLevel(config.globalPriceLevel)
+          }
+        } catch (error) {
+          console.error("Error loading quote for editing:", error)
+        }
+      }
+    }
+    
+    loadQuoteForEditing()
+  }, [editQuoteId, loading])
 
   // Ensure pricing data is loaded
   useEffect(() => {
@@ -732,6 +771,7 @@ export function Calculator() {
           <PriceSummary 
             pricingSummary={pricingSummary} 
             config={config}
+            editingQuote={editingQuote}
           />
         </div>
       </div>

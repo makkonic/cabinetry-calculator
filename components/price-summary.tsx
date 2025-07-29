@@ -14,14 +14,11 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import NumberFlow, { NumberFlowGroup } from '@number-flow/react';
 import dynamic from 'next/dynamic';
 import { useSettings } from "@/contexts/settings-context";
-import { saveQuote } from "@/lib/supabase";
+import { saveQuote, updateQuote, type Quote } from "@/lib/supabase";
 import { toast } from "@/hooks/use-toast";
+import { formatCurrency } from "@/lib/utils";
 
 // Utility functions
-const formatCurrency = (value: number): string => {
-  return `$${value.toFixed(2)}`;
-};
-
 const getMultiplierForTab = (activeTab: string): number => {
   switch (activeTab) {
     case "dealer":
@@ -40,6 +37,7 @@ const getMultiplierForTab = (activeTab: string): number => {
 interface PriceSummaryProps {
   pricingSummary: PricingSummary;
   config: CalculatorConfig;
+  editingQuote?: Quote | null;
 }
 
 // PriceSummaryItem extends the items in PricingSummary
@@ -141,7 +139,7 @@ function getDisplayName(item: PriceSummaryItem): string {
   return item.name;
 }
 
-export function PriceSummary({ pricingSummary, config }: PriceSummaryProps) {
+export function PriceSummary({ pricingSummary, config, editingQuote }: PriceSummaryProps) {
   const { contingencyRate, tariffRate } = useSettings();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState("dealer")
@@ -158,6 +156,15 @@ export function PriceSummary({ pricingSummary, config }: PriceSummaryProps) {
       isMounted.current = false;
     };
   }, []);
+
+  // Pre-fill form when editing
+  useEffect(() => {
+    if (editingQuote) {
+      setCustomerName(editingQuote.customer_name || "");
+      setCustomerEmail(editingQuote.customer_email || "");
+      setCustomerPhone(editingQuote.customer_phone || "");
+    }
+  }, [editingQuote]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -182,11 +189,11 @@ export function PriceSummary({ pricingSummary, config }: PriceSummaryProps) {
         pricing: pricingSummary,
       };
 
-      const result = await saveQuote(quote);
+      const result = editingQuote ? await updateQuote(editingQuote.id, quote) : await saveQuote(quote);
 
       if (result) {
         toast({
-          title: "Quote saved successfully!",
+          title: editingQuote ? "Quote updated successfully!" : "Quote saved successfully!",
           description: "Redirecting to quote details...",
         });
         setShowCustomerForm(false);
@@ -500,12 +507,12 @@ export function PriceSummary({ pricingSummary, config }: PriceSummaryProps) {
             <DialogTrigger asChild>
               <Button className="flex-1 bg-emerald-600 hover:bg-emerald-700">
                 <CreditCard className="w-4 h-4 mr-2" />
-                Save Quote
+                {editingQuote ? "Update Quote" : "Save Quote"}
               </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Customer Information</DialogTitle>
+                <DialogTitle>{editingQuote ? "Update Quote" : "Customer Information"}</DialogTitle>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
@@ -550,7 +557,7 @@ export function PriceSummary({ pricingSummary, config }: PriceSummaryProps) {
                     Cancel
                   </Button>
                   <Button type="submit" disabled={loading}>
-                    {loading ? "Saving..." : "Save Quote"}
+                    {loading ? (editingQuote ? "Updating..." : "Saving...") : (editingQuote ? "Update Quote" : "Save Quote")}
                   </Button>
                 </div>
               </form>

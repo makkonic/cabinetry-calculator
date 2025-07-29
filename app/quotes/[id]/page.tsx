@@ -2,12 +2,15 @@
 
 import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { getQuotes, type Quote } from "@/lib/supabase"
+import { getQuotes, deleteQuote, type Quote } from "@/lib/supabase"
 import { Header } from "@/components/header"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { ArrowLeft, Download } from "lucide-react"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
+import { ArrowLeft, Download, Edit, Trash2 } from "lucide-react"
+import { toast } from "@/hooks/use-toast"
+import { formatCurrency } from "@/lib/utils"
 import type { Template } from '@pdfme/common';
 import { BLANK_PDF } from '@pdfme/common';
 import { generate } from '@pdfme/generator';
@@ -57,6 +60,35 @@ export default function QuoteDetailsPage() {
     }
   }, [params.id])
 
+  const handleEditQuote = () => {
+    if (quote) {
+      router.push(`/?edit=${quote.id}`)
+    }
+  }
+
+  const handleDeleteQuote = async () => {
+    if (!quote) return
+    
+    try {
+      const success = await deleteQuote(quote.id)
+      if (success) {
+        toast({
+          title: "Quote deleted",
+          description: "The quote has been deleted successfully",
+        })
+        router.push('/quotes')
+      } else {
+        throw new Error("Failed to delete quote")
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete the quote. Please try again.",
+        variant: "destructive",
+      })
+    }
+  }
+
   const handleExportPDF = async () => {
     if (!quote || typeof window === "undefined") return;
 
@@ -74,7 +106,7 @@ export default function QuoteDetailsPage() {
       const quoteInfo = 
         `${quoteId}\n` +
         `${quoteDate}\n` +
-        `$${quote.pricing.total.toFixed(2)}`;
+        `${formatCurrency(quote.pricing.total)}`;
 
       // Get items for pagination
       const items = quote.pricing.items || [];
@@ -343,14 +375,14 @@ export default function QuoteDetailsPage() {
 
       // Clean summary
       const summary = 
-        `Subtotal                          $${quote.pricing.subtotal.toFixed(2)}\n` +
-        `Contingency (5%)                  $${quote.pricing.buffer.toFixed(2)}\n` +
-        `Tariff (10%)                      $${quote.pricing.tariff.toFixed(2)}`;
+        `Subtotal                          ${formatCurrency(quote.pricing.subtotal)}\n` +
+        `Contingency (5%)                  ${formatCurrency(quote.pricing.buffer)}\n` +
+        `Tariff (10%)                      ${formatCurrency(quote.pricing.tariff)}`;
 
       const markupPrices = 
-        `Trade (40%): $${quote.pricing.tradePrice.toFixed(2)}  ` +
-        `Retail 1 (100%): $${quote.pricing.retailPrice1.toFixed(2)}  ` +
-        `Retail 2 (150%): $${quote.pricing.retailPrice2.toFixed(2)}`;
+        `Trade (40%): ${formatCurrency(quote.pricing.tradePrice)}  ` +
+        `Retail 1 (100%): ${formatCurrency(quote.pricing.retailPrice1)}  ` +
+        `Retail 2 (150%): ${formatCurrency(quote.pricing.retailPrice2)}`;
 
       const currentDate = new Date().toLocaleDateString('en-US', {
         year: 'numeric',
@@ -382,7 +414,7 @@ export default function QuoteDetailsPage() {
         pageItemList.forEach((item: any, index: number) => {
           const name = item.name.length > 40 ? item.name.substring(0, 37) + '...' : item.name;
           const measurement = item.measurement || '-';
-          const price = `$${item.price.toFixed(2)}`;
+          const price = formatCurrency(item.price);
           
           pageInput[`itemName_${pageIndex}_${index}`] = name;
           pageInput[`itemMeasurement_${pageIndex}_${index}`] = measurement;
@@ -392,7 +424,7 @@ export default function QuoteDetailsPage() {
         if (isLastPage) {
           pageInput.summaryHeader = 'Summary';
           pageInput.summary = summary;
-          pageInput.totalAmount = `TOTAL: $${quote.pricing.total.toFixed(2)}`;
+          pageInput.totalAmount = `TOTAL: ${formatCurrency(quote.pricing.total)}`;
           pageInput.markupHeader = 'Additional Pricing Levels';
           pageInput.markupPrices = markupPrices;
           pageInput.footer = `Generated on ${currentDate} | This is a computer-generated document. Prices are subject to change without notice.`;
@@ -460,10 +492,41 @@ export default function QuoteDetailsPage() {
             </Button>
             <h1 className="text-2xl font-bold">Quote Details</h1>
           </div>
-          <Button onClick={handleExportPDF}>
-            <Download className="w-4 h-4 mr-2" />
-            Export PDF
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={handleEditQuote}>
+              <Edit className="w-4 h-4 mr-2" />
+              Edit Quote
+            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline">
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Delete Quote
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete Quote</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Are you sure you want to delete quote {generateQuoteId(quote)}? This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={handleDeleteQuote}
+                    className="bg-red-600 hover:bg-red-700"
+                  >
+                    Delete
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+            <Button onClick={handleExportPDF}>
+              <Download className="w-4 h-4 mr-2" />
+              Export PDF
+            </Button>
+          </div>
         </div>
 
         <div className="grid gap-6">
@@ -473,7 +536,7 @@ export default function QuoteDetailsPage() {
               <CardTitle className="flex items-center justify-between">
                 <span>Quote {generateQuoteId(quote)}</span>
                 <span className="text-xl font-bold text-emerald-600">
-                  ${quote.pricing.total.toFixed(2)}
+                  {formatCurrency(quote.pricing.total)}
                 </span>
               </CardTitle>
             </CardHeader>
@@ -492,7 +555,7 @@ export default function QuoteDetailsPage() {
                 </div>
                 <div>
                   <h3 className="font-medium mb-2">Total Amount</h3>
-                  <p className="text-xl font-bold">${quote.pricing.total.toFixed(2)}</p>
+                  <p className="text-xl font-bold">{formatCurrency(quote.pricing.total)}</p>
                 </div>
               </div>
             </CardContent>
@@ -517,7 +580,7 @@ export default function QuoteDetailsPage() {
                     <TableRow key={index}>
                       <TableCell>{item.name}</TableCell>
                       <TableCell>{item.measurement || '-'}</TableCell>
-                      <TableCell className="text-right">${item.price.toFixed(2)}</TableCell>
+                      <TableCell className="text-right">{formatCurrency(item.price)}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -534,20 +597,20 @@ export default function QuoteDetailsPage() {
               <div className="space-y-2">
                 <div className="flex justify-between">
                   <span>Subtotal</span>
-                  <span>${quote.pricing.subtotal.toFixed(2)}</span>
+                  <span>{formatCurrency(quote.pricing.subtotal)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Contingency (5%)</span>
-                  <span>${quote.pricing.buffer.toFixed(2)}</span>
+                  <span>{formatCurrency(quote.pricing.buffer)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Tariff (10%)</span>
-                  <span>${quote.pricing.tariff.toFixed(2)}</span>
+                  <span>{formatCurrency(quote.pricing.tariff)}</span>
                 </div>
                 <hr />
                 <div className="flex justify-between font-bold text-lg">
                   <span>Total</span>
-                  <span>${quote.pricing.total.toFixed(2)}</span>
+                  <span>{formatCurrency(quote.pricing.total)}</span>
                 </div>
               </div>
 
@@ -556,15 +619,15 @@ export default function QuoteDetailsPage() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                   <div className="flex justify-between">
                     <span>Trade (40%)</span>
-                    <span>${quote.pricing.tradePrice.toFixed(2)}</span>
+                    <span>{formatCurrency(quote.pricing.tradePrice)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Retail 1 (100%)</span>
-                    <span>${quote.pricing.retailPrice1.toFixed(2)}</span>
+                    <span>{formatCurrency(quote.pricing.retailPrice1)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Retail 2 (150%)</span>
-                    <span>${quote.pricing.retailPrice2.toFixed(2)}</span>
+                    <span>{formatCurrency(quote.pricing.retailPrice2)}</span>
                   </div>
                 </div>
               </div>

@@ -2,11 +2,14 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { getQuotes, type Quote } from "@/lib/supabase"
+import { getQuotes, deleteQuote, type Quote } from "@/lib/supabase"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Eye } from "lucide-react"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
+import { Eye, Edit, Trash2 } from "lucide-react"
+import { toast } from "@/hooks/use-toast"
+import { formatCurrency } from "@/lib/utils"
 
 // Quote ID prefix
 const QUOTE_PREFIX = "KCQ"; // Kitchen Calculator Quote
@@ -37,6 +40,34 @@ export function QuotesList() {
     router.push(`/quotes/${quote.id}`)
   }
 
+  const handleEditQuote = (quote: Quote) => {
+    // Navigate to calculator with quote data pre-filled
+    router.push(`/?edit=${quote.id}`)
+  }
+
+  const handleDeleteQuote = async (quoteId: number) => {
+    try {
+      const success = await deleteQuote(quoteId)
+      if (success) {
+        toast({
+          title: "Quote deleted",
+          description: "The quote has been deleted successfully",
+        })
+        // Refresh the quotes list
+        const quotesData = await getQuotes()
+        setQuotes(quotesData)
+      } else {
+        throw new Error("Failed to delete quote")
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete the quote. Please try again.",
+        variant: "destructive",
+      })
+    }
+  }
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
     return date.toLocaleDateString() + " " + date.toLocaleTimeString()
@@ -60,7 +91,7 @@ export function QuotesList() {
                   <TableHead>Customer</TableHead>
                   <TableHead className="hidden md:table-cell">Date</TableHead>
                   <TableHead className="text-right">Total</TableHead>
-                  <TableHead className="text-right w-[70px]">Actions</TableHead>
+                  <TableHead className="text-right w-[120px]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -72,12 +103,43 @@ export function QuotesList() {
                       <div className="text-sm text-gray-500">{quote.customer_email}</div>
                     </TableCell>
                     <TableCell className="hidden md:table-cell">{formatDate(quote.created_at)}</TableCell>
-                    <TableCell className="text-right font-medium">${quote.pricing.total.toFixed(2)}</TableCell>
+                    <TableCell className="text-right font-medium">{formatCurrency(quote.pricing.total)}</TableCell>
                     <TableCell className="text-right">
-                      <Button variant="ghost" size="sm" onClick={() => handleViewQuote(quote)}>
-                        <Eye className="w-4 h-4" />
-                        <span className="sr-only">View</span>
-                      </Button>
+                      <div className="flex justify-end gap-1">
+                        <Button variant="ghost" size="sm" onClick={() => handleViewQuote(quote)}>
+                          <Eye className="w-4 h-4" />
+                          <span className="sr-only">View</span>
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => handleEditQuote(quote)}>
+                          <Edit className="w-4 h-4" />
+                          <span className="sr-only">Edit</span>
+                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="sm">
+                              <Trash2 className="w-4 h-4" />
+                              <span className="sr-only">Delete</span>
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete Quote</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Are you sure you want to delete quote {generateQuoteId(quote)}? This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => handleDeleteQuote(quote.id)}
+                                className="bg-red-600 hover:bg-red-700"
+                              >
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}

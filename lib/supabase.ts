@@ -241,3 +241,32 @@ export async function getQuotes() {
 
   return data as Quote[]
 }
+
+export async function updateQuote(id: number, quote: Partial<Omit<Quote, "id" | "created_at" | "updated_at">>) {
+  const { data, error } = await supabase
+    .from("quotes")
+    .update(quote)
+    .eq("id", id)
+    .select()
+
+  if (error) {
+    console.error("Error updating quote:", error)
+    return null
+  }
+
+  return data?.[0] as Quote
+}
+
+export async function deleteQuote(id: number) {
+  const { error } = await supabase
+    .from("quotes")
+    .delete()
+    .eq("id", id)
+
+  if (error) {
+    console.error("Error deleting quote:", error)
+    return false
+  }
+
+  return true
+}
