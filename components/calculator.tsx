@@ -6,7 +6,6 @@ import { SurfaceSection } from "./surface-section"
 import { AddonSection } from "./addon-section"
 import { IslandSection } from "./island-section"
 import { PriceSummary } from "./price-summary"
-import { CustomerForm } from "./customer-form"
 import { useSettings } from "@/contexts/settings-context"
 import { SettingsPanel } from "./settings-panel"
 import { PriceLevelTooltip } from "@/components/ui/price-level-tooltip"
@@ -121,7 +120,6 @@ export function Calculator() {
 
   const [activeTab, setActiveTab] = useState("kitchen")
   const [activeKitchenTab, setActiveKitchenTab] = useState("cabinets")
-  const [showCustomerForm, setShowCustomerForm] = useState(false)
 
   const { contingencyRate, tariffRate } = useSettings();
 
@@ -722,22 +720,19 @@ export function Calculator() {
               </TabsContent>
             </Tabs>
 
-            <div className="mt-6 flex justify-end">
-              <Button onClick={() => setShowCustomerForm(true)} className="bg-emerald-600 hover:bg-emerald-700">
-                Save Quote
-              </Button>
-            </div>
+            {/* Removed the save quote button from here */}
           </CardContent>
         </Card>
 
-        {showCustomerForm && (
-          <CustomerForm config={config} pricingSummary={pricingSummary} onClose={() => setShowCustomerForm(false)} />
-        )}
+        {/* Removed the customer form from here */}
       </div>
 
       <div className="lg:col-span-1">
         <div className="sticky top-6">
-          <PriceSummary pricingSummary={pricingSummary} />
+          <PriceSummary 
+            pricingSummary={pricingSummary} 
+            config={config}
+          />
         </div>
       </div>
     </div>

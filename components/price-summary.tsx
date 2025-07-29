@@ -1,20 +1,21 @@
 "use client"
 
 import React, { useState, useMemo, useRef, useEffect, useContext, createContext } from 'react';
-import { PricingSummary } from "@/lib/calculator"
+import { useRouter } from 'next/navigation';
+import { PricingSummary, CalculatorConfig } from "@/lib/calculator"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Download, Printer, CreditCard, ChevronDown } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { CreditCard, ChevronDown } from "lucide-react"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import NumberFlow, { NumberFlowGroup } from '@number-flow/react';
 import dynamic from 'next/dynamic';
 import { useSettings } from "@/contexts/settings-context";
-// Import pdfme libraries
-import type { Template } from '@pdfme/common';
-import { BLANK_PDF } from '@pdfme/common';
-import { generate } from '@pdfme/generator';
-import { text } from '@pdfme/schemas';
+import { saveQuote } from "@/lib/supabase";
+import { toast } from "@/hooks/use-toast";
 
 // Utility functions
 const formatCurrency = (value: number): string => {
@@ -37,7 +38,8 @@ const getMultiplierForTab = (activeTab: string): number => {
 };
 
 interface PriceSummaryProps {
-  pricingSummary: PricingSummary
+  pricingSummary: PricingSummary;
+  config: CalculatorConfig;
 }
 
 // PriceSummaryItem extends the items in PricingSummary
@@ -139,25 +141,110 @@ function getDisplayName(item: PriceSummaryItem): string {
   return item.name;
 }
 
-export function PriceSummary({ pricingSummary }: PriceSummaryProps) {
+export function PriceSummary({ pricingSummary, config }: PriceSummaryProps) {
   const { contingencyRate, tariffRate } = useSettings();
-  const [activeTab, setActiveTab] = useState<string>("retail2");
-  const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
-  const [isPrinting, setIsPrinting] = useState<boolean>(false);
-  const printRef = useRef<HTMLDivElement>(null);
-  const isMounted = useRef<boolean>(true);
-
-  // Debug logging for rates
-  useEffect(() => {
-    console.log('PriceSummary rates updated:', { contingencyRate, tariffRate });
-  }, [contingencyRate, tariffRate]);
-
-  // Use effect to handle component unmounting
+  const router = useRouter();
+  const [activeTab, setActiveTab] = useState("dealer")
+  const [expandedCategories, setExpandedCategories] = useState<{ [key: string]: boolean }>({});
+  const [showCustomerForm, setShowCustomerForm] = useState(false);
+  const [customerName, setCustomerName] = useState("");
+  const [customerEmail, setCustomerEmail] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
+  const [loading, setLoading] = useState(false);
+  const isMounted = useRef(true);
+  
   useEffect(() => {
     return () => {
       isMounted.current = false;
     };
   }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!customerName || !customerEmail) {
+      toast({
+        title: "Missing information",
+        description: "Please provide customer name and email",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const quote = {
+        customer_name: customerName,
+        customer_email: customerEmail,
+        customer_phone: customerPhone,
+        configuration: config,
+        pricing: pricingSummary,
+      };
+
+      const result = await saveQuote(quote);
+
+      if (result) {
+        toast({
+          title: "Quote saved successfully!",
+          description: "Redirecting to quote details...",
+        });
+        setShowCustomerForm(false);
+        setCustomerName("");
+        setCustomerEmail("");
+        setCustomerPhone("");
+        
+        // Small delay to show the success message before redirecting
+        setTimeout(() => {
+          router.push(`/quotes/${result.id}`);
+        }, 1500);
+      } else {
+        throw new Error("Failed to save quote");
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to save the quote. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Organize items into categories
+  const summaryItems = useMemo(() => {
+    if (!pricingSummary) return { 
+      categories: {}, 
+      total: 0, 
+      subtotal: 0, 
+      buffer: 0, 
+      tariff: 0 
+    } as OrganizedItems;
+    
+    // Convert items to our format with area info
+    const items: PriceSummaryItem[] = [];
+    
+    // Process all items and extract area information
+    if (pricingSummary.items) {
+      pricingSummary.items.forEach(item => {
+        // Extract area from name since it's not directly on the item
+        const area = getAreaFromName(item.name);
+        
+        items.push({
+          name: item.name,
+          price: item.price,
+          room_name: "Kitchen", // All items go to Kitchen room
+          area: area,
+          displayName: getDisplayName({name: item.name, price: item.price, room_name: "Kitchen", area}),
+          measurement: item.measurement,
+          quantity: item.quantity
+        });
+      });
+    }
+    
+    return organizeItems(items);
+  }, [pricingSummary]);
 
   // Function to organize items by category
   function organizeItems(items: PriceSummaryItem[]): OrganizedItems {
@@ -206,40 +293,6 @@ export function PriceSummary({ pricingSummary }: PriceSummaryProps) {
     
     return organized;
   }
-
-  // Process the summary data
-  const summaryItems = useMemo(() => {
-    if (!pricingSummary) return { 
-      categories: {}, 
-      total: 0, 
-      subtotal: 0, 
-      buffer: 0, 
-      tariff: 0 
-    } as OrganizedItems;
-    
-    // Convert items to our format with area info
-    const items: PriceSummaryItem[] = [];
-    
-    // Process all items and extract area information
-    if (pricingSummary.items) {
-      pricingSummary.items.forEach(item => {
-        // Extract area from name since it's not directly on the item
-        const area = getAreaFromName(item.name);
-        
-        items.push({
-          name: item.name,
-          price: item.price,
-          room_name: "Kitchen", // All items go to Kitchen room
-          area: area,
-          displayName: getDisplayName({name: item.name, price: item.price, room_name: "Kitchen", area}),
-          measurement: item.measurement,
-          quantity: item.quantity
-        });
-      });
-    }
-    
-    return organizeItems(items);
-  }, [pricingSummary]);
 
   // Format category name for display
   const formatCategoryDisplay = (category: string): string => {
@@ -398,293 +451,6 @@ export function PriceSummary({ pricingSummary }: PriceSummaryProps) {
     );
   };
 
-  // Handle print using browser's print functionality
-  const handlePrint = async () => {
-    if (typeof window === "undefined") return;
-    setIsPrinting(true);
-    
-    // Make sure all sections are expanded for printing
-    const allCategories = Object.keys(summaryItems.categories);
-    const expandAll = allCategories.reduce((acc, category) => ({
-      ...acc,
-      [category]: true
-    }), {});
-    setExpandedCategories(expandAll);
-    
-    // Wait a bit for state to update
-    setTimeout(() => {
-      window.print();
-      setIsPrinting(false);
-    }, 100);
-  };
-
-  // Handle export to PDF using PDF.me
-  const handleExportPDF = async () => {
-    if (typeof window === "undefined") return;
-    setIsPrinting(true);
-    
-    try {
-      // Make sure all sections are expanded for PDF export
-      const allCategories = Object.keys(summaryItems.categories);
-      const expandAll = allCategories.reduce((acc, category) => ({
-        ...acc,
-        [category]: true
-      }), {});
-      setExpandedCategories(expandAll);
-      
-      // Create a PDF.me template
-      const template: Template = {
-        basePdf: BLANK_PDF,
-        schemas: [
-          [
-            // Header background (simulated with line)
-            {
-              name: 'headerLine',
-              type: 'text',
-              position: { x: 10, y: 8 },
-              width: 190,
-              height: 2,
-              fontSize: 20,
-              fontWeight: 'bold',
-              alignment: 'center',
-              fontColor: '#000000',
-            },
-            // Title
-            {
-              name: 'title',
-              type: 'text',
-              position: { x: 10, y: 15 },
-              width: 190,
-              height: 12,
-              fontSize: 18,
-              fontWeight: 'bold',
-              alignment: 'center',
-              fontColor: '#1f2937',
-            },
-            // Subtitle - pricing type
-            {
-              name: 'subtitle',
-              type: 'text',
-              position: { x: 10, y: 30 },
-              width: 190,
-              height: 8,
-              fontSize: 12,
-              alignment: 'center',
-              fontColor: '#6b7280',
-            },
-            // Date
-            {
-              name: 'date',
-              type: 'text',
-              position: { x: 10, y: 40 },
-              width: 190,
-              height: 6,
-              fontSize: 9,
-              alignment: 'center',
-              fontColor: '#9ca3af',
-            },
-            // Content area with better formatting
-            {
-              name: 'content',
-              type: 'text',
-              position: { x: 15, y: 55 },
-              width: 180,
-              height: 180,
-              fontSize: 9,
-              lineHeight: 1.4,
-              fontColor: '#374151',
-            },
-            // Summary section
-            {
-              name: 'summarySection',
-              type: 'text',
-              position: { x: 15, y: 240 },
-              width: 180,
-              height: 25,
-              fontSize: 9,
-              lineHeight: 1.3,
-              fontColor: '#374151',
-            },
-            // Total amount (highlighted)
-            {
-              name: 'total',
-              type: 'text',
-              position: { x: 15, y: 270 },
-              width: 180,
-              height: 10,
-              fontSize: 14,
-              fontWeight: 'bold',
-              alignment: 'right',
-              fontColor: '#1f2937',
-            },
-            // Footer
-            {
-              name: 'footer',
-              type: 'text',
-              position: { x: 10, y: 285 },
-              width: 190,
-              height: 6,
-              fontSize: 7,
-              alignment: 'center',
-              fontColor: '#9ca3af',
-            },
-          ],
-        ],
-      };
-      
-      // Format content for PDF
-      const multiplier = getMultiplierForTab(activeTab);
-      let contentText = '';
-      let summaryText = '';
-      
-      // Define category order to match app
-      const categoryOrder = ["Cabinets", "Surfaces", "Island", "Add-ons", "Lighting", "Other"];
-      const sortedCategoryNames = Object.keys(summaryItems.categories).sort((a, b) => {
-        return categoryOrder.indexOf(a) - categoryOrder.indexOf(b);
-      });
-      
-      // Format categories and items with better styling
-      sortedCategoryNames.forEach((categoryName, index) => {
-        const categoryData = summaryItems.categories[categoryName];
-        
-        // Add spacing between categories (except first)
-        if (index > 0) {
-          contentText += '\n';
-        }
-        
-        // Category header with total
-        const categoryTotal = (categoryData.categoryTotal * multiplier).toLocaleString('en-US', { 
-          style: 'currency', 
-          currency: 'USD',
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2
-        });
-        
-        contentText += `${formatCategoryDisplay(categoryName).toUpperCase()}${' '.repeat(Math.max(1, 35 - formatCategoryDisplay(categoryName).length))}${categoryTotal}\n`;
-        contentText += ''.padEnd(55, '-') + '\n';
-        
-        // Items in category
-        categoryData.items.forEach(item => {
-          const itemPrice = (item.price * multiplier).toLocaleString('en-US', { 
-            style: 'currency', 
-            currency: 'USD',
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2
-          });
-          
-          const displayName = getDisplayName(item);
-          const measurement = item.measurement ? ` (${item.measurement})` : '';
-          const fullItemName = `${displayName}${measurement}`;
-          
-          // Format with proper alignment
-          const nameWidth = 38;
-          const truncatedName = fullItemName.length > nameWidth ? 
-            fullItemName.substring(0, nameWidth - 3) + '...' : 
-            fullItemName;
-          
-          contentText += `  ${truncatedName.padEnd(nameWidth)}${itemPrice.padStart(12)}\n`;
-        });
-        
-        contentText += '\n';
-      });
-      
-      // Format summary section separately
-      summaryText += `Subtotal${' '.repeat(43)}${(summaryItems.subtotal * multiplier).toLocaleString('en-US', { 
-        style: 'currency', 
-        currency: 'USD',
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
-      })}\n`;
-      
-      summaryText += `Contingency (${contingencyRate * 100}%)${' '.repeat(35 - (contingencyRate * 100).toString().length)}${(summaryItems.buffer * multiplier).toLocaleString('en-US', { 
-        style: 'currency', 
-        currency: 'USD',
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
-      })}\n`;
-      
-      summaryText += `Tariff (${tariffRate * 100}%)${' '.repeat(42 - (tariffRate * 100).toString().length)}${(summaryItems.tariff * multiplier).toLocaleString('en-US', { 
-        style: 'currency', 
-        currency: 'USD',
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
-      })}\n`;
-      
-      // Generate a formatted date
-      const currentDate = new Date().toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      });
-      
-      // Format the price level for display
-      let priceLevel = '';
-      switch (activeTab) {
-        case 'dealer':
-          priceLevel = 'Dealer Pricing';
-          break;
-        case 'trade':
-          priceLevel = 'Trade Pricing';
-          break;
-        case 'retail1':
-          priceLevel = 'Retail 1 Pricing';
-          break;
-        case 'retail2':
-          priceLevel = 'Retail 2 Pricing';
-          break;
-      }
-      
-      // Setup input data for the PDF
-      const inputs = [
-        {
-          headerLine: '================================================================================',
-          title: 'Kitchen Calculation Summary',
-          subtitle: priceLevel,
-          date: `Generated on ${currentDate}`,
-          content: contentText,
-          summarySection: summaryText,
-          total: `TOTAL: ${(summaryItems.total * multiplier).toLocaleString('en-US', { 
-            style: 'currency', 
-            currency: 'USD',
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2
-          })}`,
-          footer: 'This is a computer-generated document. Prices are subject to change without notice.'
-        },
-      ];
-      
-      // Define plugins
-      const plugins = { text };
-      
-      // Generate PDF
-      const pdf = await generate({ template, inputs, plugins });
-      
-      // Create Blob and download - fix the ArrayBuffer type
-      const blob = new Blob([new Uint8Array(pdf.buffer)], { type: 'application/pdf' });
-      const url = URL.createObjectURL(blob);
-      
-      // Create hidden link and trigger download
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = 'kitchen-calculation.pdf';
-      document.body.appendChild(link);
-      link.click();
-      
-      // Clean up
-      URL.revokeObjectURL(url);
-      document.body.removeChild(link);
-      
-      if (isMounted.current) {
-        setIsPrinting(false);
-      }
-    } catch (error) {
-      console.error("Error generating PDF:", error);
-      if (isMounted.current) {
-        setIsPrinting(false);
-      }
-    }
-  };
-
   return (
     <Card className="sticky top-6">
       <CardHeader className="pb-2">
@@ -694,7 +460,7 @@ export function PriceSummary({ pricingSummary }: PriceSummaryProps) {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div ref={printRef} className={isPrinting ? "print-friendly" : ""}>
+        <div className="price-summary space-y-4">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid grid-cols-4 mb-4">
             <TabsTrigger value="dealer">Dealer</TabsTrigger>
@@ -705,40 +471,94 @@ export function PriceSummary({ pricingSummary }: PriceSummaryProps) {
 
           <TabsContent value="dealer" className="space-y-4">
               <div className="tab-content">
-                <OrganizedItemList organizedItems={summaryItems} activeTab="dealer" isPrinting={isPrinting} />
+                <OrganizedItemList organizedItems={summaryItems} activeTab="dealer" isPrinting={false} />
             </div>
           </TabsContent>
 
           <TabsContent value="trade" className="space-y-4">
               <div className="tab-content">
-                <OrganizedItemList organizedItems={summaryItems} activeTab="trade" isPrinting={isPrinting} />
+                <OrganizedItemList organizedItems={summaryItems} activeTab="trade" isPrinting={false} />
             </div>
           </TabsContent>
 
           <TabsContent value="retail1" className="space-y-4">
               <div className="tab-content">
-                <OrganizedItemList organizedItems={summaryItems} activeTab="retail1" isPrinting={isPrinting} />
+                <OrganizedItemList organizedItems={summaryItems} activeTab="retail1" isPrinting={false} />
             </div>
           </TabsContent>
 
           <TabsContent value="retail2" className="space-y-4">
               <div className="tab-content">
-                <OrganizedItemList organizedItems={summaryItems} activeTab="retail2" isPrinting={isPrinting} />
+                <OrganizedItemList organizedItems={summaryItems} activeTab="retail2" isPrinting={false} />
             </div>
           </TabsContent>
         </Tabs>
         </div>
 
         <div className="flex space-x-2 mt-6">
-          <Button onClick={handlePrint} variant="outline" className="flex-1">
-            <Printer className="w-4 h-4 mr-2" />
-            Print
-          </Button>
-          <Button onClick={handleExportPDF} variant="outline" className="flex-1">
-            <Download className="w-4 h-4 mr-2" />
-            Export PDF
-          </Button>
+          <Dialog open={showCustomerForm} onOpenChange={setShowCustomerForm}>
+            <DialogTrigger asChild>
+              <Button className="flex-1 bg-emerald-600 hover:bg-emerald-700">
+                <CreditCard className="w-4 h-4 mr-2" />
+                Save Quote
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Customer Information</DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="customer-name">Name</Label>
+                  <Input
+                    id="customer-name"
+                    value={customerName}
+                    onChange={(e) => setCustomerName(e.target.value)}
+                    placeholder="Customer name"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="customer-email">Email</Label>
+                  <Input
+                    id="customer-email"
+                    type="email"
+                    value={customerEmail}
+                    onChange={(e) => setCustomerEmail(e.target.value)}
+                    placeholder="customer@example.com"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="customer-phone">Phone</Label>
+                  <Input
+                    id="customer-phone"
+                    value={customerPhone}
+                    onChange={(e) => setCustomerPhone(e.target.value)}
+                    placeholder="Phone number"
+                  />
+                </div>
+
+                <div className="flex justify-end space-x-2">
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={() => setShowCustomerForm(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={loading}>
+                    {loading ? "Saving..." : "Save Quote"}
+                  </Button>
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
         </div>
+
+        {/* Removed the old inline form */}
       </CardContent>
     </Card>
   )
