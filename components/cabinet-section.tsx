@@ -369,7 +369,7 @@ export function CabinetSection({ cabinet, onChange, pricingData }: CabinetSectio
                 <Switch
                   checked={cabinet.strEnabled || false}
                   onCheckedChange={handleStrToggle}
-                  className={cabinet.strEnabled ? "bg-green-500" : ""}
+                  className={cabinet.strEnabled ? "bg-primary" : ""}
                 />
               </div>
             </div>

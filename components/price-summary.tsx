@@ -505,7 +505,7 @@ export function PriceSummary({ pricingSummary, config, editingQuote }: PriceSumm
         <div className="flex space-x-2 mt-6">
           <Dialog open={showCustomerForm} onOpenChange={setShowCustomerForm}>
             <DialogTrigger asChild>
-              <Button className="flex-1 bg-emerald-600 hover:bg-emerald-700">
+              <Button className="flex-1 bg-primary hover:bg-primary/90">
                 <CreditCard className="w-4 h-4 mr-2" />
                 {editingQuote ? "Update Quote" : "Save Quote"}
               </Button>

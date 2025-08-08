@@ -126,7 +126,7 @@ export function SettingsPanel() {
               
               <Button 
                 onClick={handleSaveSettings} 
-                className={`w-full ${isSaved ? 'bg-green-600 hover:bg-green-700' : ''}`}
+                className={`w-full ${isSaved ? 'bg-primary hover:bg-primary/90' : ''}`}
               >
                 {isSaved ? "Settings Saved! ✓" : "Save Settings"}
               </Button>

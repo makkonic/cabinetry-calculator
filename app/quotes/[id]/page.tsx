@@ -535,7 +535,7 @@ export default function QuoteDetailsPage() {
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
                 <span>Quote {generateQuoteId(quote)}</span>
-                <span className="text-xl font-bold text-emerald-600">
+                <span className="text-xl font-bold text-primary">
                   {formatCurrency(quote.pricing.total)}
                 </span>
               </CardTitle>
