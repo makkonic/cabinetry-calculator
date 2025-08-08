@@ -18,6 +18,7 @@ import { NumberFlowSlider } from "@/components/ui/number-flow-slider"
 import { Button } from "@/components/ui/button"
 import { CabinetSection } from "./cabinet-section"
 import { PriceLevelTooltip } from "@/components/ui/price-level-tooltip"
+import { useSettings } from "@/contexts/settings-context"
 
 // Define valid material types instead of using string
 type MaterialType = "laminate" | "fenix" | "porcelain" | "quartz" | "stainless" | "glass_matte" | "granite";
@@ -47,6 +48,7 @@ export function IslandSection({
   const [aluminumProfilesPrice, setAluminumProfilesPrice] = useState(0)
   const [aluminumToeKicksPrice, setAluminumToeKicksPrice] = useState(0)
   const [integratedSinkPrice, setIntegratedSinkPrice] = useState(0)
+  const { exchangeRate } = useSettings()
   const [totalPrice, setTotalPrice] = useState(0)
   const [counterTopWidth, setCounterTopWidth] = useState(1) // Width in feet
   const [counterTopLength, setCounterTopLength] = useState(1) // Length in feet
@@ -219,7 +221,7 @@ export function IslandSection({
           return;
         }
         
-        const cabPrice = calculateCabinetPrice(cabinet, cabinetPricing, cabinet.priceLevel);
+        const cabPrice = calculateCabinetPrice(cabinet, cabinetPricing, cabinet.priceLevel, exchangeRate);
         console.log(`Island Cabinet ${cabinet.name} calculated price: ${cabPrice}`);
         totalCabinetPrice += cabPrice;
       });
@@ -228,35 +230,35 @@ export function IslandSection({
     // Calculate counter top price - make sure it has square feet
     let ctopPrice = 0;
     if (island.counterTop && island.counterTop.squareFeet > 0) {
-      ctopPrice = calculateSurfacePrice(island.counterTop, surfacePricing);
+      ctopPrice = calculateSurfacePrice(island.counterTop, surfacePricing, 0, exchangeRate);
       console.log(`Island Counter Top price: ${ctopPrice} (${island.counterTop.squareFeet} sqft of ${island.counterTop.material})`);
     }
     
     // Calculate waterfall price
     let wfPrice = 0;
     if (island.waterfall && island.waterfall.squareFeet > 0) {
-      wfPrice = calculateSurfacePrice(island.waterfall, surfacePricing);
+      wfPrice = calculateSurfacePrice(island.waterfall, surfacePricing, 0, exchangeRate);
       console.log(`Island Waterfall price: ${wfPrice} (${island.waterfall.squareFeet} sqft of ${island.waterfall.material})`);
     }
     
     // Calculate aluminum profiles price
     let alProfilesPrice = 0;
     if (island.aluminumProfiles?.enabled && island.aluminumProfiles?.linearFeet) {
-      alProfilesPrice = calculateAddonPrice(island.aluminumProfiles, addonPricing, addonDependencies);
+      alProfilesPrice = calculateAddonPrice(island.aluminumProfiles, addonPricing, addonDependencies, 0, exchangeRate);
       console.log(`Island Aluminum Profiles price: ${alProfilesPrice}`);
     }
     
     // Calculate aluminum toe kicks price
     let alToeKicksPrice = 0;
     if (island.aluminumToeKicks?.enabled && island.aluminumToeKicks?.linearFeet) {
-      alToeKicksPrice = calculateAddonPrice(island.aluminumToeKicks, addonPricing, addonDependencies);
+      alToeKicksPrice = calculateAddonPrice(island.aluminumToeKicks, addonPricing, addonDependencies, 0, exchangeRate);
       console.log(`Island Aluminum Toe Kicks price: ${alToeKicksPrice}`);
     }
     
     // Calculate integrated sink price
     let intSinkPrice = 0;
     if (island.integratedSink && island.integratedSink.quantity && island.integratedSink.quantity > 0) {
-      intSinkPrice = calculateAddonPrice(island.integratedSink, addonPricing, addonDependencies);
+      intSinkPrice = calculateAddonPrice(island.integratedSink, addonPricing, addonDependencies, 0, exchangeRate);
       console.log(`Island Integrated Sink price: ${intSinkPrice}`);
     }
     

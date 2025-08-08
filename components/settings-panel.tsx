@@ -17,11 +17,12 @@ import {
 } from "@/components/ui/sheet";
 
 export function SettingsPanel() {
-  const { contingencyRate, tariffRate, setContingencyRate, setTariffRate } = useSettings();
+  const { contingencyRate, tariffRate, exchangeRate, setContingencyRate, setTariffRate, setExchangeRate } = useSettings();
   
   // Local state for form values
   const [localContingencyRate, setLocalContingencyRate] = useState(contingencyRate * 100);
   const [localTariffRate, setLocalTariffRate] = useState(tariffRate * 100);
+  const [localExchangeRate, setLocalExchangeRate] = useState(exchangeRate);
   const [isSaved, setIsSaved] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
 
@@ -29,7 +30,8 @@ export function SettingsPanel() {
   useEffect(() => {
     setLocalContingencyRate(contingencyRate * 100);
     setLocalTariffRate(tariffRate * 100);
-  }, [contingencyRate, tariffRate]);
+    setLocalExchangeRate(exchangeRate);
+  }, [contingencyRate, tariffRate, exchangeRate]);
 
   // Reset saved state when sheet opens
   useEffect(() => {
@@ -42,10 +44,12 @@ export function SettingsPanel() {
   const handleSaveSettings = () => {
     console.log('Saving settings:', {
       contingencyRate: localContingencyRate / 100,
-      tariffRate: localTariffRate / 100
+      tariffRate: localTariffRate / 100,
+      exchangeRate: localExchangeRate
     });
     setContingencyRate(localContingencyRate / 100);
     setTariffRate(localTariffRate / 100);
+    setExchangeRate(localExchangeRate);
     setIsSaved(true);
     
     // Close the sheet after a short delay to show the saved feedback
@@ -64,6 +68,10 @@ export function SettingsPanel() {
     setLocalTariffRate(value[0]);
   };
 
+  const handleExchangeRateChange = (value: number[]) => {
+    setLocalExchangeRate(value[0]);
+  };
+
   // Handle input changes
   const handleContingencyInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = parseFloat(e.target.value);
@@ -73,6 +81,11 @@ export function SettingsPanel() {
   const handleTariffInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = parseFloat(e.target.value);
     setLocalTariffRate(isNaN(value) ? 0 : Math.min(Math.max(value, 0), 100));
+  };
+
+  const handleExchangeRateInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = parseFloat(e.target.value);
+    setLocalExchangeRate(isNaN(value) ? 1.0 : Math.max(value, 0.01)); // Minimum 0.01 to prevent division by zero
   };
 
   return (
@@ -120,6 +133,23 @@ export function SettingsPanel() {
                     value={localTariffRate}
                     onChange={handleTariffInputChange}
                     className="w-32"
+                  />
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="exchange-rate">EUR/USD Exchange Rate</Label>
+                <div className="flex items-center space-x-2">
+                  <Input
+                    id="exchange-rate"
+                    type="number"
+                    min={0.01}
+                    max={10}
+                    step={0.01}
+                    value={localExchangeRate}
+                    onChange={handleExchangeRateInputChange}
+                    className="w-32"
+                    placeholder="1.00"
                   />
                 </div>
               </div>

@@ -71,7 +71,8 @@ export type PricingSummary = {
 export function calculateCabinetPrice(
   cabinet: CabinetConfig,
   cabinetPricing: CabinetPricing[],
-  priceLevel: number = 0
+  priceLevel: number = 0,
+  exchangeRate: number = 1.0
 ): number {
   const room_name = cabinet.room_name || "Kitchen";
   
@@ -88,7 +89,7 @@ export function calculateCabinetPrice(
   }
   
   const priceKey = `price_level_${priceLevel}` as keyof typeof pricing;
-  const basePrice = pricing[priceKey] as number;
+  const basePrice = (pricing[priceKey] as number) * exchangeRate;
   
   let finalPrice = 0;
   if (cabinet.measurement_type === "Linear FT" || cabinet.measurement_type === "Per SQFT") {
@@ -99,7 +100,7 @@ export function calculateCabinetPrice(
   
   // Add STR addon price if enabled
   if (cabinet.strEnabled && pricing.str_addon) {
-    const strAddonPrice = pricing.str_addon * (cabinet.linearFeet || cabinet.quantity || 0);
+    const strAddonPrice = (pricing.str_addon * exchangeRate) * (cabinet.linearFeet || cabinet.quantity || 0);
     finalPrice += strAddonPrice;
   }
   
@@ -109,7 +110,8 @@ export function calculateCabinetPrice(
 export function calculateSurfacePrice(
   surface: SurfaceConfig,
   surfacePricing: SurfacePricing[],
-  priceLevel: number = 0
+  priceLevel: number = 0,
+  exchangeRate: number = 1.0
 ): number {
   // Try to find exact match first
   let pricing = surfacePricing.find(
@@ -181,7 +183,7 @@ export function calculateSurfacePrice(
   }
   
   const materialPriceKey = `${surface.material}_20` as keyof typeof pricing;
-  const basePrice = pricing[materialPriceKey] as number;
+  const basePrice = (pricing[materialPriceKey] as number) * exchangeRate;
   const finalPrice = basePrice * (surface.squareFeet || 0);
   
   return finalPrice;
@@ -259,7 +261,8 @@ export function calculateAddonPrice(
   addon: AddonConfig,
   addonPricing: AddonPricing[],
   addonDependencies: AddonDependency[] = [],
-  priceLevel: number = 0
+  priceLevel: number = 0,
+  exchangeRate: number = 1.0
 ): number {
   // If the addon is specifically marked as not enabled, return 0
   if (addon.enabled === false) {
@@ -289,7 +292,7 @@ export function calculateAddonPrice(
   // Use price property as it's defined in AddonPricing type
   
   // Use price field directly instead of price_level_0
-  basePrice = pricing.price as number;
+  basePrice = (pricing.price as number) * exchangeRate;
   
   // Final price based on measurement type
   let mainPrice = 0;
@@ -308,7 +311,7 @@ export function calculateAddonPrice(
         continue;
       }
       
-      const depPrice = calculateAddonPrice(depAddon, addonPricing);
+      const depPrice = calculateAddonPrice(depAddon, addonPricing, addonDependencies, priceLevel, exchangeRate);
       dependentPrice += depPrice;
     }
   }
@@ -326,6 +329,7 @@ export function calculateTotalPrice(
   addonDependencies: AddonDependency[] = [],
   contingencyRate: number = 0.05, // Default 5%
   tariffRate: number = 0.10, // Default 10%
+  exchangeRate: number = 1.0, // Default 1.0 (no adjustment)
 ): PricingSummary {
   // Prepare the pricing info for all items
   const items: { name: string; price: number; measurement?: string; quantity?: number }[] = []
@@ -343,7 +347,7 @@ export function calculateTotalPrice(
       continue;
     }
     
-    const price = calculateCabinetPrice(cabinet, cabinetPricing, cabinet.priceLevel)
+    const price = calculateCabinetPrice(cabinet, cabinetPricing, cabinet.priceLevel, exchangeRate)
     if (price > 0) {
       cabinetsTotal += price;
       
@@ -374,7 +378,7 @@ export function calculateTotalPrice(
       continue;
     }
     
-    const price = calculateSurfacePrice(surface, surfacePricing)
+    const price = calculateSurfacePrice(surface, surfacePricing, 0, exchangeRate)
     if (price > 0) {
       surfacesTotal += price;
       items.push({
@@ -456,7 +460,7 @@ export function calculateTotalPrice(
       }
     } else if (addon.name !== "Transformer") { 
       // For normal addons (not LED or transformers), calculate price normally
-      price = calculateAddonPrice(addon, addonPricing, addonDependencies);
+      price = calculateAddonPrice(addon, addonPricing, addonDependencies, 0, exchangeRate);
       
       if (price > 0) {
         addonsTotal += price;
@@ -498,7 +502,7 @@ export function calculateTotalPrice(
               };
               
               // We no longer set price to 0 for dependents, but calculate the actual price
-              const depPrice = calculateAddonPrice(updatedDepAddon, addonPricing);
+              const depPrice = calculateAddonPrice(updatedDepAddon, addonPricing, addonDependencies, 0, exchangeRate);
               if (depPrice > 0) {
                 items.push({
                   name: `- ${depAddon.name} (${depAddon.area}) [Dependent]`,
@@ -533,7 +537,7 @@ export function calculateTotalPrice(
           continue;
         }
         
-        const price = calculateCabinetPrice(islandCabinet, cabinetPricing, islandCabinet.priceLevel);
+        const price = calculateCabinetPrice(islandCabinet, cabinetPricing, islandCabinet.priceLevel, exchangeRate);
         if (price > 0) {
           // Create measurement string for island cabinet
           let measurement = '';
@@ -566,7 +570,7 @@ export function calculateTotalPrice(
         strEnabled: false,
       }
 
-      const islandCabinetPrice = calculateCabinetPrice(islandCabinet, cabinetPricing, islandCabinet.priceLevel)
+      const islandCabinetPrice = calculateCabinetPrice(islandCabinet, cabinetPricing, islandCabinet.priceLevel, exchangeRate)
       if (islandCabinetPrice > 0) {
         items.push({
           name: "Island Cabinet (kitchen-island)",
@@ -579,7 +583,7 @@ export function calculateTotalPrice(
 
     // Island counter top - ensure it has sqft > 0
     if (config.island.counterTop && config.island.counterTop.squareFeet > 0) {
-      const islandCounterTopPrice = calculateSurfacePrice(config.island.counterTop, surfacePricing)
+      const islandCounterTopPrice = calculateSurfacePrice(config.island.counterTop, surfacePricing, 0, exchangeRate)
       if (islandCounterTopPrice > 0) {
         items.push({
           name: `Counter Top - ${config.island.counterTop.material} (kitchen-island)`,
@@ -592,7 +596,7 @@ export function calculateTotalPrice(
 
     // Island waterfall if enabled and has sqft > 0
     if (config.island.waterfall && config.island.waterfall.squareFeet > 0) {
-      const islandWaterfallPrice = calculateSurfacePrice(config.island.waterfall, surfacePricing)
+      const islandWaterfallPrice = calculateSurfacePrice(config.island.waterfall, surfacePricing, 0, exchangeRate)
       if (islandWaterfallPrice > 0) {
         items.push({
           name: `Waterfall - ${config.island.waterfall.material} (kitchen-island)`,
@@ -605,7 +609,7 @@ export function calculateTotalPrice(
 
     // Island addons
     if (config.island.aluminumProfiles?.enabled && config.island.aluminumProfiles?.linearFeet) {
-      const aluminumProfilesPrice = calculateAddonPrice(config.island.aluminumProfiles, addonPricing, addonDependencies)
+      const aluminumProfilesPrice = calculateAddonPrice(config.island.aluminumProfiles, addonPricing, addonDependencies, 0, exchangeRate)
       if (aluminumProfilesPrice > 0) {
         items.push({
           name: "Aluminum Profiles (kitchen-island)",
@@ -617,7 +621,7 @@ export function calculateTotalPrice(
     }
 
     if (config.island.aluminumToeKicks?.enabled && config.island.aluminumToeKicks?.linearFeet) {
-      const aluminumToeKicksPrice = calculateAddonPrice(config.island.aluminumToeKicks, addonPricing, addonDependencies)
+      const aluminumToeKicksPrice = calculateAddonPrice(config.island.aluminumToeKicks, addonPricing, addonDependencies, 0, exchangeRate)
       if (aluminumToeKicksPrice > 0) {
         items.push({
           name: "Aluminum Toe Kicks (kitchen-island)",
@@ -629,7 +633,7 @@ export function calculateTotalPrice(
     }
 
     if (config.island.integratedSink?.enabled && config.island.integratedSink?.quantity && config.island.integratedSink?.quantity > 0) {
-      const integratedSinkPrice = calculateAddonPrice(config.island.integratedSink, addonPricing, addonDependencies)
+      const integratedSinkPrice = calculateAddonPrice(config.island.integratedSink, addonPricing, addonDependencies, 0, exchangeRate)
       if (integratedSinkPrice > 0) {
         items.push({
           name: "Integrated Sink (kitchen-island)",

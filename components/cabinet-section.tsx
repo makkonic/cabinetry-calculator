@@ -19,6 +19,7 @@ import { NumberFlowSlider } from "@/components/ui/number-flow-slider"
 import NumberFlow from '@number-flow/react';
 import { getDisplayName } from "@/lib/utils"
 import { PriceLevelTooltip } from "@/components/ui/price-level-tooltip"
+import { useSettings } from "@/contexts/settings-context"
 
 interface CabinetSectionProps {
   cabinet: CabinetConfig
@@ -32,6 +33,7 @@ export function CabinetSection({ cabinet, onChange, pricingData }: CabinetSectio
   const [length, setLength] = useState(0) // Default to 0 for SQFT calculation
   const [initialized, setInitialized] = useState(false)
   const [useDetailedDimensions, setUseDetailedDimensions] = useState(false)
+  const { exchangeRate } = useSettings()
   
   const pricing = pricingData.find(
     (p) => 
@@ -54,7 +56,7 @@ export function CabinetSection({ cabinet, onChange, pricingData }: CabinetSectio
       strEnabled: cabinet.strEnabled
     });
     
-    const calculatedPrice = calculateCabinetPrice(cabinet, pricingData, cabinet.priceLevel);
+    const calculatedPrice = calculateCabinetPrice(cabinet, pricingData, cabinet.priceLevel, exchangeRate);
     console.log(`Calculated cabinet price for ${cabinet.name}: ${calculatedPrice}`);
     setPrice(calculatedPrice);
 

@@ -129,7 +129,7 @@ export function Calculator() {
   const [activeTab, setActiveTab] = useState("kitchen")
   const [activeKitchenTab, setActiveKitchenTab] = useState("cabinets")
 
-  const { contingencyRate, tariffRate } = useSettings();
+  const { contingencyRate, tariffRate, exchangeRate } = useSettings();
 
   // Generate cabinet configs from cabinet pricing data
   const generateCabinetConfigs = (cabinetPricingData: CabinetPricing[], selectedHandleType: string) => {
@@ -504,7 +504,8 @@ export function Calculator() {
     addonPricing, 
     addonDependencies,
     contingencyRate,
-    tariffRate
+    tariffRate,
+    exchangeRate
   )
 
   const handleGlobalPriceLevelChange = (value: string) => {
